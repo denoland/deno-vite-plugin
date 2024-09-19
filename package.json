@@ -1,0 +1,26 @@
+{
+  "name": "deno-vite-plugin",
+  "version": "0.0.1",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "rimraf dist/ && tsc"
+  },
+  "peerDependencies": {
+    "vite": "^5.4.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.5",
+    "esbuild": "^0.23.1",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.6.2"
+  }
+}
