@@ -12,7 +12,8 @@
     "dist/"
   ],
   "scripts": {
-    "build": "rimraf dist/ && tsc"
+    "build": "rimraf dist/ && tsc",
+    "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
     "vite": "^5.4.6"
