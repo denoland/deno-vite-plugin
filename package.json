@@ -12,6 +12,7 @@
     "dist/"
   ],
   "scripts": {
+    "test": "echo 'test'",
     "build": "rimraf dist/ && tsc",
     "prepublishOnly": "npm run build"
   },
