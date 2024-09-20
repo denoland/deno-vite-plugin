@@ -47,20 +47,20 @@ export interface DenoResolveResult {
 }
 
 function isResolveError(
-  info: NpmResolvedInfo | ResolvedInfo | ResolveError,
+  info: NpmResolvedInfo | ResolvedInfo | ResolveError
 ): info is ResolveError {
   return "error" in info && typeof info.error === "string";
 }
 
 export async function resolveDeno(
   id: string,
-  cwd: string,
+  cwd: string
 ): Promise<DenoResolveResult | null> {
   // There is no JS-API in Deno to get the final file path in Deno's
   // cache directory. The `deno info` command reveals that information
   // though, so we can use that.
   const output = await new Promise<string | null>((resolve) => {
-    exec(`deno fino --json '${id}'`, { cwd }, (error, stdout) => {
+    exec(`deno info --json '${id}'`, { cwd }, (error, stdout) => {
       if (error) resolve(null);
       else resolve(stdout);
     });
