@@ -60,7 +60,7 @@ export async function resolveDeno(
   // cache directory. The `deno info` command reveals that information
   // though, so we can use that.
   const output = await new Promise<string | null>((resolve) => {
-    exec(`deno fino --json '${id}'`, { cwd }, (error, stdout) => {
+    exec(`deno info --json '${id}'`, { cwd }, (error, stdout) => {
       if (error) resolve(null);
       else resolve(stdout);
     });
