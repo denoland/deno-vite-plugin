@@ -152,6 +152,7 @@ export async function resolveViteSpecifier(
   }
 
   const resolved = await resolveDeno(id, root);
+  console.log("resolved deno", id, "->", resolved);
 
   // Deno cannot resolve this
   if (resolved === null) return;
