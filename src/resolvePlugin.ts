@@ -11,7 +11,7 @@ import * as fsp from "node:fs/promises";
 import process from "node:process";
 
 export default function denoPlugin(
-  cache: Map<string, DenoResolveResult>,
+  cache: Map<string, DenoResolveResult>
 ): Plugin {
   let root = process.cwd();
 
@@ -24,7 +24,7 @@ export default function denoPlugin(
       // The "pre"-resolve plugin already resolved it
       if (isDenoSpecifier(id)) return;
 
-      return resolveViteSpecifier(id, cache, root, importer);
+      return await resolveViteSpecifier(id, cache, root, importer);
     },
     async load(id) {
       if (!isDenoSpecifier(id)) return;
