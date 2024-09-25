@@ -25,6 +25,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v1
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
