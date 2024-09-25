@@ -29,12 +29,13 @@ export default function denoPlugin(
       return result;
     },
     async load(id) {
+      console.log("LOAD", id);
       if (!isDenoSpecifier(id)) return;
 
       const { loader, resolved } = parseDenoSpecifier(id);
 
+      console.log("LOADING", loader, resolved);
       const content = await fsp.readFile(resolved, "utf-8");
-
       if (loader === "JavaScript") return content;
       if (loader === "Json") {
         return `export default ${content}`;
