@@ -1,4 +1,10 @@
 {
+  "unstable": ["sloppy-imports"],
+  "lint": {
+    "rules": {
+      "exclude": ["no-sloppy-imports"]
+    }
+  },
   "nodeModulesDir": "auto",
   "imports": {
     "@std/path": "jsr:@std/path@^1.0.6",
