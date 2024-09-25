@@ -31,6 +31,7 @@ export default function denoPrefixPlugin(
       } else if (id.startsWith("http:") || id.startsWith("https:")) {
         const result = await resolveViteSpecifier(id, cache, root, importer);
         console.log("PRE -> #2 ", result);
+        return result;
       }
     },
   };
