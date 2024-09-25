@@ -25,7 +25,7 @@ export default function denoPrefixPlugin(
 
         // TODO: Resolving custom versions is not supported at the moment
         const actual = resolved.id.slice(0, resolved.id.indexOf("@"));
-        const result = this.resolve(actual);
+        const result = await this.resolve(actual);
         console.log("PRE -> ", result, actual);
         return result ?? actual;
       } else if (id.startsWith("http:") || id.startsWith("https:")) {
