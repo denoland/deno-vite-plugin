@@ -1,8 +1,8 @@
 import * as path from "node:path";
-import { execAsync } from "./test-utils.js";
 import { beforeAll, describe, expect, it } from "vitest";
+import { execAsync } from "../src/utils.ts";
 
-const fixtureDir = path.join(import.meta.dirname, "fixture");
+const fixtureDir = path.join(import.meta.dirname!, "fixture");
 
 async function runTest(file: string) {
   const res = await execAsync(`node dist/${file}`, {

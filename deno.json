@@ -1,5 +1,9 @@
 {
+  "unstable": ["sloppy-imports"],
   "lint": {
-    "exclude": ["tests/fixture/dist"]
+    "rules": {
+      "exclude": ["no-sloppy-imports"]
+    },
+    "exclude": ["tests/fixture/dist/", "dist/"]
   }
 }

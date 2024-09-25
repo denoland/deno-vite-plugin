@@ -1,4 +1,6 @@
 import { exec } from "node:child_process";
+import process from "node:process";
+import { execAsync } from "./utils";
 
 export type DenoMediaType =
   | "TypeScript"
@@ -52,15 +54,29 @@ function isResolveError(
   return "error" in info && typeof info.error === "string";
 }
 
+let checkedDenoInstall = false;
+const DENO_BINARY = process.platform === "win32" ? "deno.exe" : "deno";
+
 export async function resolveDeno(
   id: string,
   cwd: string,
 ): Promise<DenoResolveResult | null> {
+  if (!checkedDenoInstall) {
+    try {
+      await execAsync(`${DENO_BINARY} --version`, { cwd });
+      checkedDenoInstall = true;
+    } catch {
+      throw new Error(
+        `Deno binary could not be found. Install Deno to resolve this error.`,
+      );
+    }
+  }
+
   // There is no JS-API in Deno to get the final file path in Deno's
   // cache directory. The `deno info` command reveals that information
   // though, so we can use that.
   const output = await new Promise<string | null>((resolve) => {
-    exec(`deno info --json '${id}'`, { cwd }, (error, stdout) => {
+    exec(`${DENO_BINARY} info --json '${id}'`, { cwd }, (error, stdout) => {
       if (error) resolve(null);
       else resolve(stdout);
     });
