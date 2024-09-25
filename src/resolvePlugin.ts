@@ -25,12 +25,12 @@ export default function denoPlugin(
       if (isDenoSpecifier(id)) return;
 
       const result = await resolveViteSpecifier(id, cache, root, importer);
-      console.log(id, result);
+      console.log("resolve result", id, result);
       return result;
     },
     async load(id) {
-      console.log("LOAD", id);
       if (!isDenoSpecifier(id)) return;
+      console.log("LOAD", JSON.stringify(id));
 
       const { loader, resolved } = parseDenoSpecifier(id);
 

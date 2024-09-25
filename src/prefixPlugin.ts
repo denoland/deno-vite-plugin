@@ -18,8 +18,8 @@ export default function denoPrefixPlugin(
       root = config.root;
     },
     async resolveId(id, importer) {
-      console.log("PRE", id, importer);
       if (id.startsWith("npm:")) {
+        console.log("PRE", id, importer);
         const resolved = await resolveDeno(id, root);
         if (resolved === null) return;
 
@@ -29,6 +29,7 @@ export default function denoPrefixPlugin(
         console.log("PRE -> ", result, actual);
         return result ?? actual;
       } else if (id.startsWith("http:") || id.startsWith("https:")) {
+        console.log("PRE", id, importer);
         const result = await resolveViteSpecifier(id, cache, root, importer);
         console.log("PRE -> #2 ", result);
         return result;
