@@ -1,8 +1,14 @@
 import { Plugin } from "vite";
-import { resolveDeno } from "./resolver.js";
+import {
+  DenoResolveResult,
+  resolveDeno,
+  resolveViteSpecifier,
+} from "./resolver.js";
 import process from "node:process";
 
-export default function denoPrefixPlugin(): Plugin {
+export default function denoPrefixPlugin(
+  cache: Map<string, DenoResolveResult>,
+): Plugin {
   let root = process.cwd();
 
   return {
@@ -11,7 +17,7 @@ export default function denoPrefixPlugin(): Plugin {
     configResolved(config) {
       root = config.root;
     },
-    async resolveId(id) {
+    async resolveId(id, importer) {
       if (id.startsWith("npm:")) {
         const resolved = await resolveDeno(id, root);
         if (resolved === null) return;
@@ -19,6 +25,8 @@ export default function denoPrefixPlugin(): Plugin {
         // TODO: Resolving custom versions is not supported at the moment
         const actual = resolved.id.slice(0, resolved.id.indexOf("@"));
         return this.resolve(actual);
+      } else if (id.startsWith("http:") || id.startsWith("https:")) {
+        return await resolveViteSpecifier(id, cache, root, importer);
       }
     },
   };

@@ -102,3 +102,77 @@ export async function resolveDeno(
 
   throw new Error(`Unsupported: ${JSON.stringify(mod, null, 2)}`);
 }
+
+export async function resolveViteSpecifier(
+  id: string,
+  cache: Map<string, DenoResolveResult>,
+  root: string,
+  importer?: string,
+) {
+  // Resolve import map
+  if (!id.startsWith(".") && !id.startsWith("/")) {
+    try {
+      id = import.meta.resolve(id);
+    } catch {
+      // Ignore: not resolvable
+    }
+  }
+
+  if (importer && isDenoSpecifier(importer)) {
+    const { resolved: parent } = parseDenoSpecifier(importer);
+
+    const cached = cache.get(parent);
+    if (cached === undefined) return;
+
+    const found = cached.dependencies.find((dep) => dep.specifier === id);
+
+    if (found === undefined) return;
+
+    // Check if we need to continue resolution
+    id = found.code.specifier;
+    if (!id.startsWith("http://") && !id.startsWith("https://")) {
+      return found.code.specifier;
+    }
+  }
+
+  const resolved = await resolveDeno(id, root);
+
+  // Deno cannot resolve this
+  if (resolved === null) return;
+
+  cache.set(resolved.id, resolved);
+
+  // Vite can load this
+  if (resolved.loader === null) return resolved.id;
+
+  // We must load it
+  return toDenoSpecifier(resolved.loader, id, resolved.id);
+}
+
+export type DenoSpecifierName = string & { __brand: "deno" };
+
+export function isDenoSpecifier(str: string): str is DenoSpecifierName {
+  return str.startsWith("\0deno");
+}
+
+export function toDenoSpecifier(
+  loader: DenoMediaType,
+  id: string,
+  resolved: string,
+): DenoSpecifierName {
+  return `\0deno::${loader}::${id}::${resolved}` as DenoSpecifierName;
+}
+
+export function parseDenoSpecifier(spec: DenoSpecifierName): {
+  loader: DenoMediaType;
+  id: string;
+  resolved: string;
+} {
+  const [_, loader, id, resolved] = spec.split("::") as [
+    string,
+    string,
+    DenoMediaType,
+    string,
+  ];
+  return { loader: loader as DenoMediaType, id, resolved };
+}
