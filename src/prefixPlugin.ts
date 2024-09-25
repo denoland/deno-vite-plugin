@@ -12,7 +12,7 @@ export default function denoPrefixPlugin(
   let root = process.cwd();
 
   return {
-    name: "deno-prefix",
+    name: "deno:prefix",
     enforce: "pre",
     configResolved(config) {
       root = config.root;
