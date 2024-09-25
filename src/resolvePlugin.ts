@@ -24,7 +24,9 @@ export default function denoPlugin(
       // The "pre"-resolve plugin already resolved it
       if (isDenoSpecifier(id)) return;
 
-      return await resolveViteSpecifier(id, cache, root, importer);
+      const result = await resolveViteSpecifier(id, cache, root, importer);
+      console.log(id, result);
+      return result;
     },
     async load(id) {
       if (!isDenoSpecifier(id)) return;

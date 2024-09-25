@@ -18,15 +18,19 @@ export default function denoPrefixPlugin(
       root = config.root;
     },
     async resolveId(id, importer) {
+      console.log("PRE", id, importer);
       if (id.startsWith("npm:")) {
         const resolved = await resolveDeno(id, root);
         if (resolved === null) return;
 
         // TODO: Resolving custom versions is not supported at the moment
         const actual = resolved.id.slice(0, resolved.id.indexOf("@"));
-        return this.resolve(actual);
+        const result = this.resolve(actual);
+        console.log("PRE -> ", result, actual);
+        return result ?? actual;
       } else if (id.startsWith("http:") || id.startsWith("https:")) {
-        return await resolveViteSpecifier(id, cache, root, importer);
+        const result = await resolveViteSpecifier(id, cache, root, importer);
+        console.log("PRE -> #2 ", result);
       }
     },
   };
