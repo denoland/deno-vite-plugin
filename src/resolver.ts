@@ -161,7 +161,7 @@ export async function resolveViteSpecifier(
   if (resolved === null) return;
 
   if (resolved.kind === "npm") {
-    resolved.id = id;
+    return null;
   }
 
   console.log("resolved deno", id, "->", resolved);
