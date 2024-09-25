@@ -1,6 +1,7 @@
 import { exec } from "node:child_process";
 import process from "node:process";
 import { execAsync } from "./utils";
+import { resolve } from "path/posix";
 
 export type DenoMediaType =
   | "TypeScript"
@@ -44,6 +45,7 @@ interface DenoInfoJsonV1 {
 
 export interface DenoResolveResult {
   id: string;
+  kind: "esm" | "npm";
   loader: DenoMediaType | null;
   dependencies: ResolvedInfo["dependencies"];
 }
@@ -105,12 +107,14 @@ export async function resolveDeno(
   if (mod.kind === "esm") {
     return {
       id: mod.local,
+      kind: mod.kind,
       loader: mod.mediaType,
       dependencies: mod.dependencies,
     };
   } else if (mod.kind === "npm") {
     return {
       id: mod.npmPackage,
+      kind: mod.kind,
       loader: null,
       dependencies: [],
     };
@@ -151,12 +155,17 @@ export async function resolveViteSpecifier(
     }
   }
 
-  const resolved = await resolveDeno(id, root);
+  const resolved = cache.get(id) ?? await resolveDeno(id, root);
   console.log("resolved deno", id, "->", resolved);
 
   // Deno cannot resolve this
   if (resolved === null) return;
 
+  if (resolved.kind === "npm") {
+    resolved.id = id;
+  }
+
+  console.log("resolved deno", id, "->", resolved);
   cache.set(resolved.id, resolved);
 
   // Vite can load this
