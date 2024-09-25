@@ -1,0 +1,5 @@
+{
+  "lint": {
+    "exclude": ["tests/fixture/dist"]
+  }
+}

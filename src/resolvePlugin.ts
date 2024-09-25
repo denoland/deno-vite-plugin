@@ -11,7 +11,7 @@ import * as fsp from "node:fs/promises";
 import process from "node:process";
 
 export default function denoPlugin(
-  cache: Map<string, DenoResolveResult>
+  cache: Map<string, DenoResolveResult>,
 ): Plugin {
   let root = process.cwd();
 
