@@ -1,6 +1,6 @@
 import { exec } from "node:child_process";
 import process from "node:process";
-import { execAsync } from "./utils";
+import { execAsync } from "./utils.js";
 
 export type DenoMediaType =
   | "TypeScript"

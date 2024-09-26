@@ -3,7 +3,7 @@ import {
   DenoResolveResult,
   resolveDeno,
   resolveViteSpecifier,
-} from "./resolver";
+} from "./resolver.js";
 import process from "node:process";
 
 export default function denoPrefixPlugin(
