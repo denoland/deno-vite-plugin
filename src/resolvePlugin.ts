@@ -24,17 +24,13 @@ export default function denoPlugin(
       // The "pre"-resolve plugin already resolved it
       if (isDenoSpecifier(id)) return;
 
-      const result = await resolveViteSpecifier(id, cache, root, importer);
-      console.log("resolve result", id, result);
-      return result;
+      return await resolveViteSpecifier(id, cache, root, importer);
     },
     async load(id) {
       if (!isDenoSpecifier(id)) return;
-      console.log("LOAD", JSON.stringify(id));
 
       const { loader, resolved } = parseDenoSpecifier(id);
 
-      console.log("LOADING", loader, resolved);
       const content = await fsp.readFile(resolved, "utf-8");
       if (loader === "JavaScript") return content;
       if (loader === "Json") {

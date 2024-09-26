@@ -155,7 +155,6 @@ export async function resolveViteSpecifier(
   }
 
   const resolved = cache.get(id) ?? await resolveDeno(id, root);
-  console.log("resolved deno", id, "->", resolved);
 
   // Deno cannot resolve this
   if (resolved === null) return;
@@ -164,7 +163,6 @@ export async function resolveViteSpecifier(
     return null;
   }
 
-  console.log("resolved deno", id, "->", resolved);
   cache.set(resolved.id, resolved);
 
   // Vite can load this
