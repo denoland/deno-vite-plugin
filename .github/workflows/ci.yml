@@ -1,4 +1,4 @@
-name: Node.js CI
+name: CI
 
 on:
   push:
@@ -12,6 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v1
+        with:
+          deno-version: canary
       - run: deno fmt --check
       - run: deno lint
 
@@ -25,6 +27,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: canary
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
@@ -32,4 +37,8 @@ jobs:
 
       - run: npm i
       - run: npm run build --if-present
+      - name: Build fixture
+        working-directory: ./tests/fixture
+        run: npx vite build --debug
+
       - run: npm test

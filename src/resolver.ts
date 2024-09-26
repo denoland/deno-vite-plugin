@@ -1,4 +1,6 @@
 import { exec } from "node:child_process";
+import process from "node:process";
+import { execAsync } from "./utils";
 
 export type DenoMediaType =
   | "TypeScript"
@@ -42,6 +44,7 @@ interface DenoInfoJsonV1 {
 
 export interface DenoResolveResult {
   id: string;
+  kind: "esm" | "npm";
   loader: DenoMediaType | null;
   dependencies: ResolvedInfo["dependencies"];
 }
@@ -52,15 +55,29 @@ function isResolveError(
   return "error" in info && typeof info.error === "string";
 }
 
+let checkedDenoInstall = false;
+const DENO_BINARY = process.platform === "win32" ? "deno.exe" : "deno";
+
 export async function resolveDeno(
   id: string,
   cwd: string,
 ): Promise<DenoResolveResult | null> {
+  if (!checkedDenoInstall) {
+    try {
+      await execAsync(`${DENO_BINARY} --version`, { cwd });
+      checkedDenoInstall = true;
+    } catch {
+      throw new Error(
+        `Deno binary could not be found. Install Deno to resolve this error.`,
+      );
+    }
+  }
+
   // There is no JS-API in Deno to get the final file path in Deno's
   // cache directory. The `deno info` command reveals that information
   // though, so we can use that.
   const output = await new Promise<string | null>((resolve) => {
-    exec(`deno info --json '${id}'`, { cwd }, (error, stdout) => {
+    exec(`${DENO_BINARY} info --json ${id}`, { cwd }, (error, stdout) => {
       if (error) resolve(null);
       else resolve(stdout);
     });
@@ -89,16 +106,96 @@ export async function resolveDeno(
   if (mod.kind === "esm") {
     return {
       id: mod.local,
+      kind: mod.kind,
       loader: mod.mediaType,
       dependencies: mod.dependencies,
     };
   } else if (mod.kind === "npm") {
     return {
       id: mod.npmPackage,
+      kind: mod.kind,
       loader: null,
       dependencies: [],
     };
   }
 
   throw new Error(`Unsupported: ${JSON.stringify(mod, null, 2)}`);
+}
+
+export async function resolveViteSpecifier(
+  id: string,
+  cache: Map<string, DenoResolveResult>,
+  root: string,
+  importer?: string,
+) {
+  // Resolve import map
+  if (!id.startsWith(".") && !id.startsWith("/")) {
+    try {
+      id = import.meta.resolve(id);
+    } catch {
+      // Ignore: not resolvable
+    }
+  }
+
+  if (importer && isDenoSpecifier(importer)) {
+    const { resolved: parent } = parseDenoSpecifier(importer);
+
+    const cached = cache.get(parent);
+    if (cached === undefined) return;
+
+    const found = cached.dependencies.find((dep) => dep.specifier === id);
+
+    if (found === undefined) return;
+
+    // Check if we need to continue resolution
+    id = found.code.specifier;
+    if (!id.startsWith("http://") && !id.startsWith("https://")) {
+      return found.code.specifier;
+    }
+  }
+
+  const resolved = cache.get(id) ?? await resolveDeno(id, root);
+
+  // Deno cannot resolve this
+  if (resolved === null) return;
+
+  if (resolved.kind === "npm") {
+    return null;
+  }
+
+  cache.set(resolved.id, resolved);
+
+  // Vite can load this
+  if (resolved.loader === null) return resolved.id;
+
+  // We must load it
+  return toDenoSpecifier(resolved.loader, id, resolved.id);
+}
+
+export type DenoSpecifierName = string & { __brand: "deno" };
+
+export function isDenoSpecifier(str: string): str is DenoSpecifierName {
+  return str.startsWith("\0deno");
+}
+
+export function toDenoSpecifier(
+  loader: DenoMediaType,
+  id: string,
+  resolved: string,
+): DenoSpecifierName {
+  return `\0deno::${loader}::${id}::${resolved}` as DenoSpecifierName;
+}
+
+export function parseDenoSpecifier(spec: DenoSpecifierName): {
+  loader: DenoMediaType;
+  id: string;
+  resolved: string;
+} {
+  const [_, loader, id, resolved] = spec.split("::") as [
+    string,
+    string,
+    DenoMediaType,
+    string,
+  ];
+  return { loader: loader as DenoMediaType, id, resolved };
 }
