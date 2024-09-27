@@ -11,6 +11,15 @@
   "files": [
     "dist/"
   ],
+  "keywords": [
+    "deno",
+    "vite",
+    "plugin"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/denoland/deno-vite-plugin.git"
+  },
   "scripts": {
     "test": "vitest",
     "build": "rimraf dist/ && tsc",

@@ -1,6 +1,17 @@
 # Deno vite plugin
 
 Plugin to enable Deno resolution inside [vite](https://github.com/vitejs/vite).
+It supports:
+
+- Alias mappings in `deno.json`
+- `npm:` specifier
+- `jsr:` specifier
+- `http:` and `https:` specifiers
+
+## Limitations
+
+Deno specific resolution cannot be used in `vite.config.ts` because it's not
+possible to intercept the bundling process of the config file in vite.
 
 ## Usage
 
