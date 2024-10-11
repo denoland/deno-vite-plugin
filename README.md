@@ -23,7 +23,7 @@ npm install @deno/vite-plugin
 # pnpm
 pnpm install @deno/vite-plugin
 # deno
-deno install @deno/vite-plugin
+deno install npm:@deno/vite-plugin
 ```
 
 Add the plugin to your vite configuration file `vite.config.ts`:
