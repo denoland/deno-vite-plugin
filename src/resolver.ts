@@ -1,5 +1,6 @@
 import { exec } from "node:child_process";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { execAsync } from "./utils.js";
 
 export type DenoMediaType =
@@ -149,8 +150,8 @@ export async function resolveViteSpecifier(
 
     // Check if we need to continue resolution
     id = found.code.specifier;
-    if (!id.startsWith("http://") && !id.startsWith("https://")) {
-      return found.code.specifier;
+    if (id.startsWith("file://")) {
+      return fileURLToPath(id);
     }
   }
 
