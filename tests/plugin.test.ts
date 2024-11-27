@@ -23,6 +23,10 @@ describe("Deno plugin", () => {
       await runTest(`importMapAlias.js`);
     });
 
+    it("resolves alias mapped", async () => {
+      await runTest(`importMapAliasMapped.js`);
+    });
+
     it("resolves npm:", async () => {
       await runTest(`importMapNpm.js`);
     });

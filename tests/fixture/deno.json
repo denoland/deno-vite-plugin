@@ -10,6 +10,7 @@
     "@std/path": "jsr:@std/path@^1.0.6",
     "import-map-alias": "./alias-target.ts",
     "preact": "npm:preact@^10.24.0",
-    "preact-http": "https://esm.sh/preact"
+    "preact-http": "https://esm.sh/preact",
+    "mapped/": "mapped/"
   }
 }

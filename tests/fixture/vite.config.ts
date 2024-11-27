@@ -8,6 +8,7 @@ export default defineConfig({
       formats: ["es"],
       entry: {
         importMapAlias: "alias.ts",
+        importMapAliasMapped: "alias-mapped.ts",
         importMapNpm: "npm.ts",
         importMapJsr: "jsr.ts",
         importMapHttp: "http.ts",
