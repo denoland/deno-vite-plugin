@@ -152,8 +152,6 @@ export async function resolveViteSpecifier(
     id = found.code.specifier;
     if (id.startsWith("file://")) {
       return fileURLToPath(id);
-    } else if (!id.startsWith("http://") && !id.startsWith("https://")) {
-      return id;
     }
   }
 
