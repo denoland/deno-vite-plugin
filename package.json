@@ -27,7 +27,7 @@
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
-    "vite": "^5.4.6"
+    "vite": "5.x || 6.x"
   },
   "devDependencies": {
     "@types/node": "^22.5.5",
