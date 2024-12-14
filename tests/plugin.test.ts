@@ -41,6 +41,10 @@ describe("Deno plugin", () => {
   });
 
   describe("inline", () => {
+    it("resolves external:", async () => {
+      await runTest(`inlineExternal.js`);
+    });
+
     it("resolves npm:", async () => {
       await runTest(`inlineNpm.js`);
     });
