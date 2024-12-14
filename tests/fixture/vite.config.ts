@@ -12,7 +12,7 @@ export default defineConfig({
         importMapNpm: "npm.ts",
         importMapJsr: "jsr.ts",
         importMapHttp: "http.ts",
-        inlineExternal: 'inlineExternal.ts',
+        inlineExternal: "inlineExternal.ts",
         inlineNpm: "inlineNpm.ts",
         inlineJsr: "inlineJsr.ts",
         inlineHttp: "inlineHttp.ts",

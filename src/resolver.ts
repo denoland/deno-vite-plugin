@@ -45,7 +45,9 @@ interface DenoInfoJsonV1 {
   version: 1;
   redirects: Record<string, string>;
   roots: string[];
-  modules: Array<NpmResolvedInfo | ResolvedInfo | ExternalResolvedInfo | ResolveError>;
+  modules: Array<
+    NpmResolvedInfo | ResolvedInfo | ExternalResolvedInfo | ResolveError
+  >;
 }
 
 export interface DenoResolveResult {
