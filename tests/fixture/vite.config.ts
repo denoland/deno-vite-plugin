@@ -9,6 +9,7 @@ export default defineConfig({
       entry: {
         importMapAlias: "alias.ts",
         importMapAliasMapped: "alias-mapped.ts",
+        importMapAliasHashPrefix: "alias-hash-prefix.ts",
         importMapNpm: "npm.ts",
         importMapJsr: "jsr.ts",
         importMapHttp: "http.ts",
