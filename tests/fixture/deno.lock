@@ -1,27 +1,21 @@
 {
   "version": "4",
   "specifiers": {
-    "jsr:@std/path@*": "1.0.6",
-    "jsr:@std/path@^1.0.6": "1.0.6",
-    "npm:preact@*": "10.24.0",
-    "npm:preact@^10.24.0": "10.24.0"
+    "jsr:@std/path@^1.0.6": "1.0.8",
+    "npm:preact@^10.24.0": "10.25.4"
   },
   "jsr": {
-    "@std/path@1.0.6": {
-      "integrity": "ab2c55f902b380cf28e0eec501b4906e4c1960d13f00e11cfbcd21de15f18fed"
+    "@std/path@1.0.8": {
+      "integrity": "548fa456bb6a04d3c1a1e7477986b6cffbce95102d0bb447c67c4ee70e0364be"
     }
   },
   "npm": {
-    "preact@10.24.0": {
-      "integrity": "sha512-aK8Cf+jkfyuZ0ZZRG9FbYqwmEiGQ4y/PUO4SuTWoyWL244nZZh7bd5h2APd4rSNDYTBNghg1L+5iJN3Skxtbsw=="
+    "preact@10.25.4": {
+      "integrity": "sha512-jLdZDb+Q+odkHJ+MpW/9U5cODzqnB+fy2EiHSZES7ldV5LK7yjlVzTp7R8Xy6W6y75kfK8iWYtFVH7lvjwrCMA=="
     }
   },
-  "redirects": {
-    "https://esm.sh/preact": "https://esm.sh/preact@10.24.0"
-  },
   "remote": {
-    "https://esm.sh/preact@10.24.0": "ab23d4024a0fc68b1632d7e3b5d157d774d5698152b5303adfbda35064e91c7b",
-    "https://esm.sh/stable/preact@10.24.0/denonext/preact.mjs": "c914516d9df1c45afa542a588beb077ff6a1ab57ec97eb4593006e8794c1752e"
+    "https://esm.sh/preact@10.25.4/denonext/preact.mjs": "5b19c5a3daab9e9f4f4bed775afbb84dd4de2b8cc670ee332f5458c53a6a2d45"
   },
   "workspace": {
     "dependencies": [
