@@ -43,9 +43,15 @@ export default function denoPlugin(
         logLevel: "debug",
       });
 
+      // Issue: https://github.com/denoland/deno-vite-plugin/issues/38
+      // Esbuild uses an empty string as empty value and vite expects
+      // `null` to be the empty value. This seems to be only the case in
+      // `dev` mode
+      const map = result.map === "" ? null : result.map;
+
       return {
         code: result.code,
-        map: result.map,
+        map,
       };
     },
   };
