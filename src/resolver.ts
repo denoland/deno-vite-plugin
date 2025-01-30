@@ -84,10 +84,15 @@ export async function resolveDeno(
   // There is no JS-API in Deno to get the final file path in Deno's
   // cache directory. The `deno info` command reveals that information
   // though, so we can use that.
-  const output = await new Promise<string | null>((resolve) => {
+  const output = await new Promise<string | null>((resolve, reject) => {
     execFile(DENO_BINARY, ["info", "--json", id], { cwd }, (error, stdout) => {
-      if (error) resolve(null);
-      else resolve(stdout);
+      if (error) {
+        if (String(error).includes("Integrity check failed")) {
+          reject(error);
+        } else {
+          resolve(null);
+        }
+      } else resolve(stdout);
     });
   });
 
