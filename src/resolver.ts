@@ -187,7 +187,12 @@ export async function resolveViteSpecifier(
     resolved.loader === null ||
     !path.relative(root, resolved.id).startsWith(".")
   ) {
-    console.log("kepp", JSON.stringify(id), resolved);
+    console.log(
+      "keep",
+      JSON.stringify(id),
+      path.relative(root, resolved.id),
+      resolved,
+    );
     return resolved.id;
   }
 
