@@ -185,7 +185,8 @@ export async function resolveViteSpecifier(
   // Vite can load this
   if (
     resolved.loader === null ||
-    !path.relative(root, resolved.id).startsWith(".")
+    resolved.id.startsWith(root) &&
+      !path.relative(root, resolved.id).startsWith(".")
   ) {
     console.log(
       "keep",
