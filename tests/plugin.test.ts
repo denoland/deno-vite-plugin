@@ -61,4 +61,9 @@ describe("Deno plugin", () => {
       await runTest(`inlineHttp.js`);
     });
   });
+
+  // https://github.com/denoland/deno-vite-plugin/issues/42
+  it("resolve to file in root dir", async () => {
+    await runTest(`resolveInRootDir.js`);
+  });
 });

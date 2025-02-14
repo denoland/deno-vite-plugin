@@ -1,8 +1,18 @@
 import { defineConfig } from "vite";
 import deno from "../../src/index";
+import path from "node:path";
 
 export default defineConfig({
-  plugins: [deno()],
+  plugins: [deno(), {
+    name: "mapped-transform",
+    // @ts-ignore not sure
+    transform(code, id) {
+      if (id.startsWith("\0")) return;
+      if (!id.includes("mapped") || path.basename(id) !== "foo.ts") return;
+
+      return code.replace("it doesn't work", "it works");
+    },
+  }],
   build: {
     lib: {
       formats: ["es"],
@@ -17,6 +27,7 @@ export default defineConfig({
         inlineNpm: "inlineNpm.ts",
         inlineJsr: "inlineJsr.ts",
         inlineHttp: "inlineHttp.ts",
+        resolveInRootDir: "resolveInRootDir.ts",
       },
     },
   },

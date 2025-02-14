@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import process from "node:process";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execAsync } from "./utils.js";
 
@@ -182,7 +183,13 @@ export async function resolveViteSpecifier(
   cache.set(resolved.id, resolved);
 
   // Vite can load this
-  if (resolved.loader === null) return resolved.id;
+  if (
+    resolved.loader === null ||
+    resolved.id.startsWith(path.resolve(root)) &&
+      !path.relative(root, resolved.id).startsWith(".")
+  ) {
+    return resolved.id;
+  }
 
   // We must load it
   return toDenoSpecifier(resolved.loader, id, resolved.id);
