@@ -188,11 +188,12 @@ export async function resolveViteSpecifier(
     !path.relative(root, resolved.id).startsWith(".")
   ) {
     console.log(
-      "keep",
-      root,
-      resolved.id,
-      path.relative(root, resolved.id),
-      resolved,
+      {
+        root,
+        resolved: resolved.id,
+        rootr: path.resolve(root),
+        resolvedR: path.resolve(resolved.id),
+      },
     );
     return resolved.id;
   }
