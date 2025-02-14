@@ -189,8 +189,8 @@ export async function resolveViteSpecifier(
   ) {
     console.log(
       "keep",
-      JSON.stringify(id),
       root,
+      resolved.id,
       path.relative(root, resolved.id),
       resolved,
     );
