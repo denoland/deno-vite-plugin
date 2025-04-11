@@ -22,8 +22,13 @@ export default function denoPrefixPlugin(
         const resolved = await resolveDeno(id, root);
         if (resolved === null) return;
 
+        const match = resolved.id.match(/^(@?[^@/]+)(?:@?([^@/]+))?(\/.+)?$/);
+        if (!match) return;
+
+        const [, pkg, _version, path = ""] = match;
+
         // TODO: Resolving custom versions is not supported at the moment
-        const actual = resolved.id.slice(0, resolved.id.indexOf("@"));
+        const actual = pkg + path;
         const result = await this.resolve(actual);
         return result ?? actual;
       } else if (id.startsWith("http:") || id.startsWith("https:")) {
