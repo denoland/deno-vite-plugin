@@ -30,5 +30,16 @@ export default function denoPrefixPlugin(
         return await resolveViteSpecifier(id, cache, root, importer);
       }
     },
+    transform(code, id) {
+      if (!id.endsWith(".jsx") && !id.endsWith(".tsx")) return;
+
+      const match = code.match(
+        /\/\*\*\s*@jsxImportSource\s+npm:(@?[^@\s*]+)([^\s*]*)\s*\*\//,
+      );
+
+      if (match) {
+        return code.replace(match[0], `/** @jsxImportSource ${match[1]} */`);
+      }
+    },
   };
 }
