@@ -3,6 +3,7 @@ import process from "node:process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execAsync } from "./utils.js";
+import Lock from "./lock.js";
 
 export type DenoMediaType =
   | "TypeScript"
@@ -70,6 +71,7 @@ const DENO_BINARY = process.platform === "win32" ? "deno.exe" : "deno";
 export async function resolveDeno(
   id: string,
   cwd: string,
+  lock: Lock,
 ): Promise<DenoResolveResult | null> {
   if (!checkedDenoInstall) {
     try {
@@ -85,10 +87,12 @@ export async function resolveDeno(
   // There is no JS-API in Deno to get the final file path in Deno's
   // cache directory. The `deno info` command reveals that information
   // though, so we can use that.
+  await lock.acquire();
   const output = await new Promise<string | null>((resolve, reject) => {
     execFile(DENO_BINARY, ["info", "--json", id], { cwd }, (error, stdout) => {
       if (error) {
         if (String(error).includes("Integrity check failed")) {
+          lock.release();
           reject(error);
         } else {
           resolve(null);
@@ -97,7 +101,10 @@ export async function resolveDeno(
     });
   });
 
-  if (output === null) return null;
+  if (output === null) {
+    lock.release();
+    return null;
+  }
 
   const json = JSON.parse(output) as DenoInfoJsonV1;
   const actualId = json.roots[0];
@@ -110,13 +117,18 @@ export async function resolveDeno(
 
   // Find the module information based on the redirected speciffier
   const mod = json.modules.find((info) => info.specifier === redirected);
-  if (mod === undefined) return null;
-
-  // Specifier not found by deno
-  if (isResolveError(mod)) {
+  if (mod === undefined) {
+    lock.release();
     return null;
   }
 
+  // Specifier not found by deno
+  if (isResolveError(mod)) {
+    lock.release();
+    return null;
+  }
+
+  lock.release();
   if (mod.kind === "esm") {
     return {
       id: mod.local,
@@ -143,6 +155,7 @@ export async function resolveViteSpecifier(
   id: string,
   cache: Map<string, DenoResolveResult>,
   root: string,
+  lock: Lock,
   importer?: string,
 ) {
   // Resolve import map
@@ -171,7 +184,7 @@ export async function resolveViteSpecifier(
     }
   }
 
-  const resolved = cache.get(id) ?? await resolveDeno(id, root);
+  const resolved = cache.get(id) ?? await resolveDeno(id, root, lock);
 
   // Deno cannot resolve this
   if (resolved === null) return;

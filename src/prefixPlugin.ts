@@ -5,9 +5,11 @@ import {
   resolveViteSpecifier,
 } from "./resolver.js";
 import process from "node:process";
+import Lock from "./lock.js";
 
 export default function denoPrefixPlugin(
   cache: Map<string, DenoResolveResult>,
+  lock: Lock,
 ): Plugin {
   let root = process.cwd();
 
@@ -19,7 +21,7 @@ export default function denoPrefixPlugin(
     },
     async resolveId(id, importer) {
       if (id.startsWith("npm:")) {
-        const resolved = await resolveDeno(id, root);
+        const resolved = await resolveDeno(id, root, lock);
         if (resolved === null) return;
 
         // TODO: Resolving custom versions is not supported at the moment
@@ -27,7 +29,7 @@ export default function denoPrefixPlugin(
         const result = await this.resolve(actual);
         return result ?? actual;
       } else if (id.startsWith("http:") || id.startsWith("https:")) {
-        return await resolveViteSpecifier(id, cache, root, importer);
+        return await resolveViteSpecifier(id, cache, root, lock, importer);
       }
     },
   };

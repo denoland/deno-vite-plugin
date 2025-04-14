@@ -9,9 +9,11 @@ import {
 import { type Loader, transform } from "esbuild";
 import * as fsp from "node:fs/promises";
 import process from "node:process";
+import Lock from "./lock.js";
 
 export default function denoPlugin(
   cache: Map<string, DenoResolveResult>,
+  lock: Lock,
 ): Plugin {
   let root = process.cwd();
 
@@ -24,7 +26,7 @@ export default function denoPlugin(
       // The "pre"-resolve plugin already resolved it
       if (isDenoSpecifier(id)) return;
 
-      return await resolveViteSpecifier(id, cache, root, importer);
+      return await resolveViteSpecifier(id, cache, root, lock, importer);
     },
     async load(id) {
       if (!isDenoSpecifier(id)) return;
