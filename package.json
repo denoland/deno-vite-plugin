@@ -1,5 +1,5 @@
 {
-  "name": "@deno/vite-plugin",
+  "name": "@clau-org/vite-plugin",
   "version": "1.0.4",
   "type": "module",
   "license": "MIT",
