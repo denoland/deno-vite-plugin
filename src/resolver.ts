@@ -180,7 +180,10 @@ export async function resolveViteSpecifier(
     return null;
   }
 
-  cache.set(resolved.id, resolved);
+  // NOTE: Original code, seems to fail on Windows
+  // cache.set(resolved.id, resolved);
+  // NOTE: Modified code, seems to work on Windows
+  cache.set(resolved.id.replaceAll(path.sep, path.posix.sep), resolved);
 
   // Vite can load this
   if (
