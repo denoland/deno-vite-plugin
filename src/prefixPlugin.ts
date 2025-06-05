@@ -5,6 +5,7 @@ import {
   resolveViteSpecifier,
 } from "./resolver.js";
 import process from "node:process";
+import path from "node:path";
 
 export default function denoPrefixPlugin(
   cache: Map<string, DenoResolveResult>,
@@ -15,7 +16,8 @@ export default function denoPrefixPlugin(
     name: "deno:prefix",
     enforce: "pre",
     configResolved(config) {
-      root = config.root;
+      // Root path given by Vite always uses posix separators.
+      root = path.normalize(config.root);
     },
     async resolveId(id, importer) {
       if (id.startsWith("npm:")) {
