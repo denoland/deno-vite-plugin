@@ -1,6 +1,6 @@
-import { Plugin } from "vite";
+import type { Plugin } from "vite";
 import {
-  DenoResolveResult,
+  type DenoResolveResult,
   resolveDeno,
   resolveViteSpecifier,
 } from "./resolver.js";
