@@ -148,7 +148,7 @@ export async function resolveViteSpecifier(
   const root = path.normalize(posixRoot);
 
   // Resolve import map
-  if (!id.startsWith(".") && !id.startsWith(path.sep)) {
+  if (!id.startsWith(".") && !id.startsWith("/")) {
     try {
       id = import.meta.resolve(id);
     } catch {
