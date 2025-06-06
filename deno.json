@@ -1,7 +1,5 @@
 {
-  "name": "@deno/vite-plugin",
   "unstable": ["sloppy-imports"],
-  "exports": "./dist/index.js",
   "lint": {
     "rules": {
       "exclude": ["no-sloppy-imports"]
