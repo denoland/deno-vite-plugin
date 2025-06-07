@@ -67,6 +67,14 @@ function isResolveError(
 let checkedDenoInstall = false;
 const DENO_BINARY = process.platform === "win32" ? "deno.exe" : "deno";
 
+// Helper function to normalize paths for cache keys on Windows
+function normalizeCacheKey(key: string): string {
+  if (process.platform === "win32") {
+    return key.replace(/\\/g, "/");
+  }
+  return key;
+}
+
 export async function resolveDeno(
   id: string,
   cwd: string,
@@ -157,7 +165,7 @@ export async function resolveViteSpecifier(
   if (importer && isDenoSpecifier(importer)) {
     const { resolved: parent } = parseDenoSpecifier(importer);
 
-    const cached = cache.get(parent);
+    const cached = cache.get(normalizeCacheKey(parent));
     if (cached === undefined) return;
 
     const found = cached.dependencies.find((dep) => dep.specifier === id);
@@ -171,7 +179,8 @@ export async function resolveViteSpecifier(
     }
   }
 
-  const resolved = cache.get(id) ?? await resolveDeno(id, root);
+  const resolved = cache.get(normalizeCacheKey(id)) ??
+    await resolveDeno(id, root);
 
   // Deno cannot resolve this
   if (resolved === null) return;
@@ -180,7 +189,7 @@ export async function resolveViteSpecifier(
     return null;
   }
 
-  cache.set(resolved.id, resolved);
+  cache.set(normalizeCacheKey(resolved.id), resolved);
 
   // Vite can load this
   if (
