@@ -28,6 +28,7 @@ export default defineConfig({
         inlineJsr: "inlineJsr.ts",
         inlineHttp: "inlineHttp.ts",
         resolveInRootDir: "resolveInRootDir.ts",
+        linking: "linking.ts",
       },
     },
   },
