@@ -1,0 +1,6 @@
+{
+  "name": "linked",
+  "exports": {
+    ".": "./main.ts"
+  }
+}

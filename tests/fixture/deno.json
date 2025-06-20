@@ -6,6 +6,7 @@
     }
   },
   "nodeModulesDir": "auto",
+  "links": ["../linked"],
   "imports": {
     "@std/path": "jsr:@std/path@^1.0.6",
     "import-map-alias": "./alias-target.ts",

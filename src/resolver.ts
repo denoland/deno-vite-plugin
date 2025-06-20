@@ -142,9 +142,11 @@ export async function resolveDeno(
 export async function resolveViteSpecifier(
   id: string,
   cache: Map<string, DenoResolveResult>,
-  root: string,
+  posixRoot: string,
   importer?: string,
 ) {
+  const root = path.normalize(posixRoot);
+
   // Resolve import map
   if (!id.startsWith(".") && !id.startsWith("/")) {
     try {
@@ -214,11 +216,12 @@ export function parseDenoSpecifier(spec: DenoSpecifierName): {
   id: string;
   resolved: string;
 } {
-  const [_, loader, id, resolved] = spec.split("::") as [
+  const [_, loader, id, posixPath] = spec.split("::") as [
     string,
     string,
     DenoMediaType,
     string,
   ];
+  const resolved = path.normalize(posixPath);
   return { loader: loader as DenoMediaType, id, resolved };
 }

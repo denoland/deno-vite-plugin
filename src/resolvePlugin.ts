@@ -1,4 +1,4 @@
-import { Plugin } from "vite";
+import type { Plugin } from "vite";
 import {
   type DenoMediaType,
   type DenoResolveResult,
@@ -9,6 +9,7 @@ import {
 import { type Loader, transform } from "esbuild";
 import * as fsp from "node:fs/promises";
 import process from "node:process";
+import path from "node:path";
 
 export default function denoPlugin(
   cache: Map<string, DenoResolveResult>,
@@ -18,7 +19,8 @@ export default function denoPlugin(
   return {
     name: "deno",
     configResolved(config) {
-      root = config.root;
+      // Root path given by Vite always uses posix separators.
+      root = path.normalize(config.root);
     },
     async resolveId(id, importer) {
       // The "pre"-resolve plugin already resolved it
