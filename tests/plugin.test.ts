@@ -66,4 +66,8 @@ describe("Deno plugin", () => {
   it("resolve to file in root dir", async () => {
     await runTest(`resolveInRootDir.js`);
   });
+
+  it("resolves @jsxImportSource with npm: prefix", async () => {
+    await runTest(`jsx.js`);
+  });
 });

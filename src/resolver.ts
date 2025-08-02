@@ -126,7 +126,7 @@ export async function resolveDeno(
     };
   } else if (mod.kind === "npm") {
     return {
-      id: mod.npmPackage,
+      id: mod.specifier.replace(/^npm:\//, ""),
       kind: mod.kind,
       loader: null,
       dependencies: [],
