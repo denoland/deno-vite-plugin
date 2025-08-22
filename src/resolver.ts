@@ -100,7 +100,7 @@ export async function resolveDeno(
   if (output === null) return null;
 
   const json = JSON.parse(output) as DenoInfoJsonV1;
-  if(!('roots' in json)) {
+  if(!("roots" in json)) {
     return null
   }
 
