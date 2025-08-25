@@ -71,7 +71,7 @@ export async function resolveDeno(
   id: string,
   cwd: string,
 ): Promise<DenoResolveResult | null> {
-  if (id.startsWith("\x00")) return null;
+  if (id.startsWith("\x00")) return null; // ignore vite virtual modules
 
   if (!checkedDenoInstall) {
     try {
