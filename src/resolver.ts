@@ -169,6 +169,10 @@ export async function resolveViteSpecifier(
     // Check if we need to continue resolution
     id = found.code.specifier;
     if (id.startsWith("file://")) {
+      const idx = id.indexOf('?');
+      if (idx > -1) {
+        return fileURLToPath(id) + id.substring(idx);
+      }
       return fileURLToPath(id);
     }
   }
