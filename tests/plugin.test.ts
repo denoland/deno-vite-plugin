@@ -60,6 +60,10 @@ describe("Deno plugin", () => {
     it("resolves http:", async () => {
       await runTest(`inlineHttp.js`);
     });
+
+    it("resolves json module", async () => {
+      await runTest(`inlineHttpJson.js`);
+    });
   });
 
   // https://github.com/denoland/deno-vite-plugin/issues/42

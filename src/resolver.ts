@@ -32,6 +32,14 @@ interface NpmResolvedInfo {
   npmPackage: string;
 }
 
+interface JsonResolvedInfo {
+  kind: "asserted";
+  local: string;
+  size: number;
+  mediaType: DenoMediaType;
+  specifier: string;
+}
+
 interface ExternalResolvedInfo {
   kind: "external";
   specifier: string;
@@ -47,7 +55,11 @@ interface DenoInfoJsonV1 {
   redirects: Record<string, string>;
   roots: string[];
   modules: Array<
-    NpmResolvedInfo | ResolvedInfo | ExternalResolvedInfo | ResolveError
+    | NpmResolvedInfo
+    | ResolvedInfo
+    | ExternalResolvedInfo
+    | JsonResolvedInfo
+    | ResolveError
   >;
 }
 
@@ -59,7 +71,12 @@ export interface DenoResolveResult {
 }
 
 function isResolveError(
-  info: NpmResolvedInfo | ResolvedInfo | ExternalResolvedInfo | ResolveError,
+  info:
+    | NpmResolvedInfo
+    | ResolvedInfo
+    | ExternalResolvedInfo
+    | JsonResolvedInfo
+    | ResolveError,
 ): info is ResolveError {
   return "error" in info && typeof info.error === "string";
 }
@@ -136,6 +153,13 @@ export async function resolveDeno(
   } else if (mod.kind === "external") {
     // Let vite handle this
     return null;
+  } else if (mod.kind === "asserted") {
+    return {
+      id: mod.local,
+      kind: "esm",
+      loader: mod.mediaType,
+      dependencies: [],
+    };
   }
 
   throw new Error(`Unsupported: ${JSON.stringify(mod, null, 2)}`);
