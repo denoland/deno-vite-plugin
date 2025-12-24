@@ -45,7 +45,7 @@ interface ResolveError {
 interface DenoInfoJsonV1 {
   version: 1;
   redirects: Record<string, string>;
-  roots: string[];
+  roots?: string[];
   modules: Array<
     NpmResolvedInfo | ResolvedInfo | ExternalResolvedInfo | ResolveError
   >;
@@ -102,6 +102,10 @@ export async function resolveDeno(
   if (output === null) return null;
 
   const json = JSON.parse(output) as DenoInfoJsonV1;
+  if (!("roots" in json)) {
+    return null;
+  }
+
   const actualId = json.roots[0];
 
   // Find the final resolved cache path. First, we need to check
