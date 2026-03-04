@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { execAsync } from "../src/utils.ts";
+import { extractPackageName } from "../src/prefixPlugin.ts";
 
 const fixtureDir = path.join(import.meta.dirname!, "fixture");
 
@@ -53,6 +54,10 @@ describe("Deno plugin", () => {
       await runTest(`inlineNpm.js`);
     });
 
+    it("resolves scoped npm:", async () => {
+      await runTest(`inlineScopedNpm.js`);
+    });
+
     it("resolves jsr:", async () => {
       await runTest(`inlineJsr.js`);
     });
@@ -65,5 +70,31 @@ describe("Deno plugin", () => {
   // https://github.com/denoland/deno-vite-plugin/issues/42
   it("resolve to file in root dir", async () => {
     await runTest(`resolveInRootDir.js`);
+  });
+});
+
+describe("extractPackageName", () => {
+  it("handles unscoped packages", () => {
+    expect(extractPackageName("preact@10.25.4")).toEqual("preact");
+  });
+
+  it("handles scoped packages", () => {
+    expect(extractPackageName("@preact/signals@2.8.1")).toEqual(
+      "@preact/signals",
+    );
+  });
+
+  it("handles scoped packages with peer dep suffixes", () => {
+    expect(
+      extractPackageName("@preact/signals@2.8.1_preact@10.25.4"),
+    ).toEqual("@preact/signals");
+  });
+
+  it("handles packages without version", () => {
+    expect(extractPackageName("preact")).toEqual("preact");
+  });
+
+  it("handles scoped packages without version", () => {
+    expect(extractPackageName("@preact/signals")).toEqual("@preact/signals");
   });
 });
