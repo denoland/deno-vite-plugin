@@ -25,6 +25,7 @@ export default defineConfig({
         importMapHttp: "http.ts",
         inlineExternal: "inlineExternal.ts",
         inlineNpm: "inlineNpm.ts",
+        inlineScopedNpm: "inlineScopedNpm.ts",
         inlineJsr: "inlineJsr.ts",
         inlineHttp: "inlineHttp.ts",
         resolveInRootDir: "resolveInRootDir.ts",
