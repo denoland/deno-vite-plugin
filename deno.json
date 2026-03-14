@@ -4,6 +4,6 @@
     "rules": {
       "exclude": ["no-sloppy-imports"]
     },
-    "exclude": ["tests/", "dist/"]
+    "exclude": ["tests/fixture/dist/", "dist/"]
   }
 }
