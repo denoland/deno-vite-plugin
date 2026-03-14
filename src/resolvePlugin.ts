@@ -6,10 +6,33 @@ import {
   parseDenoSpecifier,
   resolveViteSpecifier,
 } from "./resolver.js";
-import { type Loader, transform } from "esbuild";
 import * as fsp from "node:fs/promises";
 import process from "node:process";
 import path from "node:path";
+
+import type { SourceMapInput } from "rollup";
+
+type TransformFn = (
+  code: string,
+  filename: string,
+  options: Record<string, unknown>,
+) => Promise<{ code: string; map: SourceMapInput }>;
+
+// Use Vite's built-in transform instead of depending on esbuild directly.
+// Vite 8+ provides transformWithOxc, older versions provide transformWithEsbuild.
+async function loadTransform(): Promise<TransformFn> {
+  try {
+    // deno-lint-ignore no-explicit-any
+    const vite = await import("vite") as any;
+    if (vite.transformWithOxc) return vite.transformWithOxc;
+  } catch {
+    // not available
+  }
+  const { transformWithEsbuild } = await import("vite");
+  return transformWithEsbuild as TransformFn;
+}
+
+const transformFn = loadTransform();
 
 export default function denoPlugin(
   cache: Map<string, DenoResolveResult>,
@@ -39,11 +62,9 @@ export default function denoPlugin(
         return `export default ${content}`;
       }
 
-      const result = await transform(content, {
-        format: "esm",
-        loader: mediaTypeToLoader(loader),
-        logLevel: "debug",
-      });
+      const transform = await transformFn;
+      const ext = mediaTypeToExt(loader);
+      const result = await transform(content, `source${ext}`, {});
 
       // Issue: https://github.com/denoland/deno-vite-plugin/issues/38
       // Esbuild uses an empty string as empty value and vite expects
@@ -59,17 +80,17 @@ export default function denoPlugin(
   };
 }
 
-function mediaTypeToLoader(media: DenoMediaType): Loader {
+function mediaTypeToExt(media: DenoMediaType): string {
   switch (media) {
     case "JSX":
-      return "jsx";
+      return ".jsx";
     case "JavaScript":
-      return "js";
+      return ".js";
     case "Json":
-      return "json";
+      return ".json";
     case "TSX":
-      return "tsx";
+      return ".tsx";
     case "TypeScript":
-      return "ts";
+      return ".ts";
   }
 }
