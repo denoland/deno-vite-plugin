@@ -43,3 +43,17 @@ jobs:
         run: npx vite build --debug
 
       - run: npm test
+
+  success:
+    needs:
+      - lint-and-format
+      - test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure CI success
+        run: |-
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo 'CI failed'
+            exit 1
+          fi
