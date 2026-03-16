@@ -7,7 +7,7 @@ export async function execAsync(
   return await new Promise((resolve, reject) =>
     child_process.exec(cmd, options, (error, stdout, stderr) => {
       if (error) reject(error);
-      else resolve({ stdout, stderr });
+      else resolve({ stdout: String(stdout), stderr: String(stderr) });
     })
   );
 }

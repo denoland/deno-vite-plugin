@@ -1,7 +1,9 @@
 {
-  "version": "4",
+  "version": "5",
   "specifiers": {
+    "jsr:@std/path@*": "1.0.8",
     "jsr:@std/path@^1.0.6": "1.0.8",
+    "npm:preact@*": "10.25.4",
     "npm:preact@^10.24.0": "10.25.4"
   },
   "jsr": {
@@ -14,13 +16,21 @@
       "integrity": "sha512-jLdZDb+Q+odkHJ+MpW/9U5cODzqnB+fy2EiHSZES7ldV5LK7yjlVzTp7R8Xy6W6y75kfK8iWYtFVH7lvjwrCMA=="
     }
   },
+  "redirects": {
+    "https://esm.sh/preact": "https://esm.sh/preact@10.29.0"
+  },
   "remote": {
-    "https://esm.sh/preact@10.25.4/denonext/preact.mjs": "5b19c5a3daab9e9f4f4bed775afbb84dd4de2b8cc670ee332f5458c53a6a2d45"
+    "https://esm.sh/preact@10.25.4/denonext/preact.mjs": "5b19c5a3daab9e9f4f4bed775afbb84dd4de2b8cc670ee332f5458c53a6a2d45",
+    "https://esm.sh/preact@10.29.0": "ab0a2d83d903685d9d899a357f302f89a7a2616c8b3449f3d229b17cb673f0a5",
+    "https://esm.sh/preact@10.29.0/denonext/preact.mjs": "a8381b8ae6391298439ec004d138a49487e60d232e364abadb59ed39deb50d22"
   },
   "workspace": {
     "dependencies": [
       "jsr:@std/path@^1.0.6",
       "npm:preact@^10.24.0"
-    ]
+    ],
+    "links": {
+      "jsr:linked": {}
+    }
   }
 }
