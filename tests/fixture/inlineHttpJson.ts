@@ -1,3 +1,4 @@
+// deno-lint-ignore no-import-prefix
 import metadata from "https://jsr.io/@std/path/1.1.2/deno.json" with {
   type: "json",
 };
