@@ -4,8 +4,8 @@ import {
   type Loader,
   MediaType,
   RequestedModuleType,
-  ResolveError,
   ResolutionMode,
+  ResolveError,
 } from "@deno/loader";
 
 export type DenoMediaType =
@@ -58,7 +58,10 @@ export async function resolveDeno(
     resolved = loader.resolveSync(id, undefined, ResolutionMode.Import);
     // If resolveSync returns a jsr: or http(s): URL that hasn't been graphed
     // yet, add it as an entrypoint and resolve again to get the final URL.
-    if (resolved.startsWith("jsr:") || resolved.startsWith("http:") || resolved.startsWith("https:")) {
+    if (
+      resolved.startsWith("jsr:") || resolved.startsWith("http:") ||
+      resolved.startsWith("https:")
+    ) {
       await loader.addEntrypoints([resolved]);
       resolved = loader.resolveSync(resolved, undefined, ResolutionMode.Import);
     }
@@ -230,8 +233,9 @@ export function parseDenoSpecifier(spec: DenoSpecifierName): {
   // Rejoin rest in case the resolved path contains "::" (unlikely but safe).
   const posixPath = rest.join("::");
   // Only normalize filesystem paths, not URLs.
-  const resolved = posixPath.startsWith("http:") || posixPath.startsWith("https:")
-    ? posixPath
-    : path.normalize(posixPath);
+  const resolved =
+    posixPath.startsWith("http:") || posixPath.startsWith("https:")
+      ? posixPath
+      : path.normalize(posixPath);
   return { loader: loader as DenoMediaType, id, resolved };
 }

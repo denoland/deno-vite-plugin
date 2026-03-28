@@ -31,7 +31,9 @@ export default function denoPlugin(
     async load(id) {
       if (!isDenoSpecifier(id)) return;
 
-      const { loader: mediaType, resolved, id: specifier } = parseDenoSpecifier(id);
+      const { loader: mediaType, resolved, id: specifier } = parseDenoSpecifier(
+        id,
+      );
 
       const denoLoader = await getLoader(root);
       const loadResult = await denoLoader.load(
