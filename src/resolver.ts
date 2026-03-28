@@ -184,18 +184,33 @@ export async function resolveViteSpecifier(
 
   cache.set(id, resolved);
 
-  // Vite can load this
+  // Remote modules must always go through our load hook — Vite/Node.js
+  // can't load https:// URLs natively and would fail with
+  // ERR_UNSUPPORTED_ESM_URL_SCHEME during SSR module evaluation.
+  const isRemote = resolved.id.startsWith("http:") ||
+    resolved.id.startsWith("https:");
+
+  // Vite can load this (local file with known or null loader)
   if (
-    resolved.loader === null ||
-    resolved.id.startsWith(path.resolve(root)) &&
-      !path.relative(root, resolved.id).startsWith(".")
+    !isRemote &&
+    (resolved.loader === null ||
+      resolved.id.startsWith(path.resolve(root)) &&
+        !path.relative(root, resolved.id).startsWith("."))
   ) {
     return resolved.id;
   }
 
-  // We must load it
-  return toDenoSpecifier(resolved.loader, id, resolved.id);
+  // We must load it through the deno specifier system
+  return toDenoSpecifier(resolved.loader ?? "JavaScript", id, resolved.id);
 }
+
+/**
+ * Prefix used to rewrite https:// import specifiers in loaded code.
+ * Vite's SSR module runner treats raw https:// imports as external URLs
+ * and skips resolveId, causing ERR_UNSUPPORTED_ESM_URL_SCHEME. This
+ * prefix makes them opaque to Vite so they go through resolveId.
+ */
+export const DENO_HTTP_PREFIX = "deno-http::";
 
 export type DenoSpecifierName = string & { __brand: "deno" };
 
