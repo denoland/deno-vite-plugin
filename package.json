@@ -37,6 +37,6 @@
     "vitest": "^2.1.1"
   },
   "dependencies": {
-    "@deno/loader": "npm:@jsr/deno__loader@^0.3.14"
+    "@deno/loader": "npm:@jsr/deno__loader@^0.4.0"
   }
 }
