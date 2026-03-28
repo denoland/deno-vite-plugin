@@ -5,6 +5,8 @@
     "target": "ES2020",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    // @deno/loader's .d.ts files reference Deno-specific types that
+    // aren't available when type-checking under Node.js.
     "skipLibCheck": true
   },
   "include": ["src"],

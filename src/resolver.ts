@@ -226,8 +226,8 @@ export function parseDenoSpecifier(spec: DenoSpecifierName): {
     : spec;
   const [_, loader, id, ...rest] = raw.split("::") as [
     string,
-    string,
     DenoMediaType,
+    string,
     ...string[],
   ];
   // Rejoin rest in case the resolved path contains "::" (unlikely but safe).
@@ -237,5 +237,5 @@ export function parseDenoSpecifier(spec: DenoSpecifierName): {
     posixPath.startsWith("http:") || posixPath.startsWith("https:")
       ? posixPath
       : path.normalize(posixPath);
-  return { loader: loader as DenoMediaType, id, resolved };
+  return { loader, id, resolved };
 }

@@ -10,9 +10,11 @@ import process from "node:process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+const textDecoder = new TextDecoder();
+
 export default function denoPlugin(
   cache: Map<string, DenoResolveResult>,
-  getLoader: (root: string) => Promise<Loader>,
+  getLoader: () => Promise<Loader>,
 ): Plugin {
   let root = process.cwd();
 
@@ -26,7 +28,7 @@ export default function denoPlugin(
       // The "pre"-resolve plugin already resolved it
       if (isDenoSpecifier(id)) return;
 
-      const loader = await getLoader(root);
+      const loader = await getLoader();
       return await resolveViteSpecifier(id, cache, root, loader, importer);
     },
     async load(id) {
@@ -36,7 +38,7 @@ export default function denoPlugin(
         id,
       );
 
-      const denoLoader = await getLoader(root);
+      const denoLoader = await getLoader();
       const loadResult = await denoLoader.load(
         resolved.startsWith("/") || /^[a-zA-Z]:/.test(resolved)
           ? pathToFileURL(resolved).href
@@ -45,7 +47,9 @@ export default function denoPlugin(
       );
       if (loadResult.kind === "external") return;
 
-      const code = new TextDecoder().decode(loadResult.code);
+      // TODO: @deno/loader's load() doesn't return source maps, so
+      // dev-mode debugging for remote TypeScript modules is degraded.
+      const code = textDecoder.decode(loadResult.code);
 
       if (mediaType === "Json") {
         return `export default ${code}`;

@@ -9,14 +9,25 @@ export default function deno(): Plugin[] {
   const cache = new Map<string, DenoResolveResult>();
 
   let loaderPromise: Promise<Loader> | null = null;
-  function getLoader(root: string): Promise<Loader> {
+
+  function getLoader(): Promise<Loader> {
     if (loaderPromise === null) {
-      loaderPromise = new Workspace({
-        configPath: path.join(root, "deno.json"),
-      }).createLoader();
+      throw new Error("deno plugin: loader not initialized");
     }
     return loaderPromise;
   }
 
-  return [prefixPlugin(cache, getLoader), mainPlugin(cache, getLoader)];
+  return [
+    {
+      name: "deno:config",
+      configResolved(config) {
+        const root = path.normalize(config.root);
+        loaderPromise = new Workspace({
+          configPath: path.join(root, "deno.json"),
+        }).createLoader();
+      },
+    },
+    prefixPlugin(cache, getLoader),
+    mainPlugin(cache, getLoader),
+  ];
 }

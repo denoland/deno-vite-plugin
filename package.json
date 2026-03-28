@@ -6,6 +6,9 @@
   "exports": {
     ".": {
       "import": "./dist/index.js"
+    },
+    "./resolver": {
+      "import": "./dist/resolver.js"
     }
   },
   "files": [
