@@ -13,9 +13,12 @@ async function runTest(file: string) {
 
 describe("Deno plugin", () => {
   beforeAll(async () => {
-    await execAsync(`deno run -A --unstable-bare-node-builtins npm:vite build`, {
-      cwd: fixtureDir,
-    });
+    await execAsync(
+      `deno run -A --unstable-bare-node-builtins npm:vite build`,
+      {
+        cwd: fixtureDir,
+      },
+    );
   });
 
   describe("import map", () => {

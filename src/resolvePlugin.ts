@@ -8,6 +8,7 @@ import {
 } from "./resolver.js";
 import process from "node:process";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 export default function denoPlugin(
   cache: Map<string, DenoResolveResult>,
@@ -37,7 +38,9 @@ export default function denoPlugin(
 
       const denoLoader = await getLoader(root);
       const loadResult = await denoLoader.load(
-        resolved.startsWith("/") ? "file://" + resolved : resolved,
+        resolved.startsWith("/") || /^[a-zA-Z]:/.test(resolved)
+          ? pathToFileURL(resolved).href
+          : resolved,
         RequestedModuleType.Default,
       );
       if (loadResult.kind === "external") return;
