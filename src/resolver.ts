@@ -47,6 +47,34 @@ function loaderMediaType(mt: MediaType): DenoMediaType | null {
   }
 }
 
+/** Infer media type from a file path's extension (avoids a load() call). */
+function inferMediaTypeFromPath(filePath: string): DenoMediaType | null {
+  const ext = path.extname(filePath).toLowerCase();
+  switch (ext) {
+    case ".ts":
+    case ".mts":
+    case ".cts":
+    case ".d.ts":
+    case ".d.mts":
+    case ".d.cts":
+      return "TypeScript";
+    case ".tsx":
+      return "TSX";
+    case ".js":
+    case ".mjs":
+    case ".cjs":
+      return "JavaScript";
+    case ".jsx":
+      return "JSX";
+    case ".json":
+    case ".jsonc":
+    case ".json5":
+      return "Json";
+    default:
+      return null;
+  }
+}
+
 export async function resolveDeno(
   id: string,
   loader: Loader,
@@ -98,7 +126,20 @@ export async function resolveDeno(
     return null;
   }
 
-  // For file:// and https:// URLs, get the media type via load
+  // For file:// URLs, infer the media type from the extension to avoid
+  // a redundant load() call — the load hook will call loader.load()
+  // again to get the actual content.
+  if (resolved.startsWith("file://")) {
+    const filePath = fileURLToPath(resolved);
+    return {
+      id: filePath,
+      kind: "esm",
+      loader: inferMediaTypeFromPath(filePath),
+    };
+  }
+
+  // For remote URLs (https://) we must call load() to determine the
+  // media type, since the URL extension may not reflect the content type.
   const loadResult = await loader.load(
     resolved,
     RequestedModuleType.Default,
@@ -108,15 +149,10 @@ export async function resolveDeno(
     return null;
   }
 
-  const mediaType = loaderMediaType(loadResult.mediaType);
-  const filePath = resolved.startsWith("file://")
-    ? fileURLToPath(resolved)
-    : resolved;
-
   return {
-    id: filePath,
+    id: resolved,
     kind: "esm",
-    loader: mediaType,
+    loader: loaderMediaType(loadResult.mediaType),
   };
 }
 
@@ -224,6 +260,10 @@ export function parseDenoSpecifier(spec: DenoSpecifierName): {
   const raw = spec.endsWith(DENO_SPECIFIER_SUFFIX)
     ? spec.slice(0, -DENO_SPECIFIER_SUFFIX.length)
     : spec;
+  // Format: "\0deno::<loader>::<id>::<resolved>"
+  // Position 0 is the "\0deno" prefix, 1 is the DenoMediaType, 2 is the
+  // original specifier, and the rest is the resolved path (joined in case
+  // it contains "::", e.g. an https:// URL).
   const [_, loader, id, ...rest] = raw.split("::") as [
     string,
     DenoMediaType,
