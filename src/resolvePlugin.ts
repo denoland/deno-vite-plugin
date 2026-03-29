@@ -39,23 +39,26 @@ export default function denoPlugin(
       );
 
       const denoLoader = await getLoader();
+      const specifierUrl = resolved.startsWith("/") ||
+          /^[a-zA-Z]:/.test(resolved)
+        ? pathToFileURL(resolved).href
+        : resolved;
       const loadResult = await denoLoader.load(
-        resolved.startsWith("/") || /^[a-zA-Z]:/.test(resolved)
-          ? pathToFileURL(resolved).href
-          : resolved,
+        specifierUrl,
         RequestedModuleType.Default,
       );
       if (loadResult.kind === "external") return;
 
-      // TODO: @deno/loader's load() doesn't return source maps, so
-      // dev-mode debugging for remote TypeScript modules is degraded.
       const code = textDecoder.decode(loadResult.code);
+      const map = loadResult.sourceMap
+        ? textDecoder.decode(loadResult.sourceMap)
+        : null;
 
       if (mediaType === "Json") {
         return `export default ${code}`;
       }
 
-      return code;
+      return { code, map };
     },
   };
 }
