@@ -1,8 +1,12 @@
-import { execFile } from "node:child_process";
-import process from "node:process";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { execAsync } from "./utils.js";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  type Loader,
+  MediaType,
+  RequestedModuleType,
+  ResolutionMode,
+  ResolveError,
+} from "@deno/loader";
 
 export type DenoMediaType =
   | "TypeScript"
@@ -11,172 +15,176 @@ export type DenoMediaType =
   | "JSX"
   | "Json";
 
-interface ResolvedInfo {
-  kind: "esm";
-  local: string;
-  size: number;
-  mediaType: DenoMediaType;
-  specifier: string;
-  dependencies: Array<{
-    specifier: string;
-    code: {
-      specifier: string;
-      span: { start: unknown; end: unknown };
-    };
-  }>;
-}
-
-interface NpmResolvedInfo {
-  kind: "npm";
-  specifier: string;
-  npmPackage: string;
-}
-
-interface JsonResolvedInfo {
-  kind: "asserted";
-  local: string;
-  size: number;
-  mediaType: DenoMediaType;
-  specifier: string;
-}
-
-interface ExternalResolvedInfo {
-  kind: "external";
-  specifier: string;
-}
-
-interface ResolveError {
-  specifier: string;
-  error: string;
-}
-
-interface DenoInfoJsonV1 {
-  version: 1;
-  redirects: Record<string, string>;
-  roots: string[];
-  modules: Array<
-    | NpmResolvedInfo
-    | ResolvedInfo
-    | ExternalResolvedInfo
-    | JsonResolvedInfo
-    | ResolveError
-  >;
-}
-
 export interface DenoResolveResult {
   id: string;
   kind: "esm" | "npm";
   loader: DenoMediaType | null;
-  dependencies: ResolvedInfo["dependencies"];
 }
 
-function isResolveError(
-  info:
-    | NpmResolvedInfo
-    | ResolvedInfo
-    | ExternalResolvedInfo
-    | JsonResolvedInfo
-    | ResolveError,
-): info is ResolveError {
-  return "error" in info && typeof info.error === "string";
+function loaderMediaType(mt: MediaType): DenoMediaType | null {
+  switch (mt) {
+    case MediaType.TypeScript:
+    case MediaType.Mts:
+    case MediaType.Cts:
+    case MediaType.Dts:
+    case MediaType.Dmts:
+    case MediaType.Dcts:
+      return "TypeScript";
+    case MediaType.Tsx:
+      return "TSX";
+    case MediaType.JavaScript:
+    case MediaType.Mjs:
+    case MediaType.Cjs:
+      return "JavaScript";
+    case MediaType.Jsx:
+      return "JSX";
+    case MediaType.Json:
+    case MediaType.Jsonc:
+    case MediaType.Json5:
+      return "Json";
+    default:
+      return null;
+  }
 }
 
-let checkedDenoInstall = false;
-const DENO_BINARY = process.platform === "win32" ? "deno.exe" : "deno";
+/** Infer media type from a file path's extension (avoids a load() call). */
+function inferMediaTypeFromPath(filePath: string): DenoMediaType | null {
+  const ext = path.extname(filePath).toLowerCase();
+  switch (ext) {
+    case ".ts":
+    case ".mts":
+    case ".cts":
+      return "TypeScript";
+    case ".tsx":
+      return "TSX";
+    case ".js":
+    case ".mjs":
+    case ".cjs":
+      return "JavaScript";
+    case ".jsx":
+      return "JSX";
+    case ".json":
+    case ".jsonc":
+    case ".json5":
+      return "Json";
+    default:
+      return null;
+  }
+}
 
 export async function resolveDeno(
   id: string,
-  cwd: string,
+  loader: Loader,
 ): Promise<DenoResolveResult | null> {
   if (id.startsWith("\x00")) return null; // ignore vite virtual modules
 
-  if (!checkedDenoInstall) {
-    try {
-      await execAsync(`${DENO_BINARY} --version`, { cwd });
-      checkedDenoInstall = true;
-    } catch {
-      throw new Error(
-        `Deno binary could not be found. Install Deno to resolve this error.`,
-      );
+  let resolved: string;
+  try {
+    resolved = loader.resolveSync(id, undefined, ResolutionMode.Import);
+    // If resolveSync returns a jsr: or http(s): URL that hasn't been graphed
+    // yet, add it as an entrypoint and resolve again to get the final URL.
+    // addEntrypoints may fail (e.g. network error) — treat that as unresolvable.
+    if (
+      resolved.startsWith("jsr:") || resolved.startsWith("http:") ||
+      resolved.startsWith("https:")
+    ) {
+      try {
+        await loader.addEntrypoints([resolved]);
+      } catch {
+        return null;
+      }
+      resolved = loader.resolveSync(resolved, undefined, ResolutionMode.Import);
     }
+  } catch (err) {
+    if (err instanceof ResolveError) return null;
+    throw err;
   }
 
-  // There is no JS-API in Deno to get the final file path in Deno's
-  // cache directory. The `deno info` command reveals that information
-  // though, so we can use that.
-  const output = await new Promise<string | null>((resolve, reject) => {
-    execFile(DENO_BINARY, ["info", "--json", id], { cwd }, (error, stdout) => {
-      if (error) {
-        if (String(error).includes("Integrity check failed")) {
-          reject(error);
-        } else {
-          resolve(null);
-        }
-      } else resolve(stdout);
-    });
-  });
-
-  if (output === null) return null;
-
-  const json = JSON.parse(output) as DenoInfoJsonV1;
-  const actualId = json.roots[0];
-
-  // Find the final resolved cache path. First, we need to check
-  // if the redirected specifier, which represents the final specifier.
-  // This is often used for `http://` imports where a server can do
-  // redirects.
-  const redirected = json.redirects[actualId] ?? actualId;
-
-  // Find the module information based on the redirected speciffier
-  const mod = json.modules.find((info) => info.specifier === redirected);
-  if (mod === undefined) return null;
-
-  // Specifier not found by deno
-  if (isResolveError(mod)) {
-    return null;
-  }
-
-  if (mod.kind === "esm") {
+  // npm: specifiers: the original id starts with npm: but the loader may
+  // resolve it to a file:// path (when nodeModulesDir is set) or keep it as npm:.
+  if (id.startsWith("npm:")) {
+    // Extract bare package name from the original specifier
+    // e.g. "npm:preact@^10.24.0" -> "preact"
+    //      "npm:@scope/pkg@1.0.0" -> "@scope/pkg"
+    const bare = id.slice(4);
+    let name: string;
+    if (bare.startsWith("@")) {
+      const slashIdx = bare.indexOf("/");
+      const afterSlash = bare.slice(slashIdx + 1);
+      const atIdx = afterSlash.indexOf("@");
+      name = atIdx === -1 ? bare : bare.slice(0, slashIdx + 1 + atIdx);
+    } else {
+      const atIdx = bare.indexOf("@");
+      name = atIdx === -1 ? bare : bare.slice(0, atIdx);
+    }
     return {
-      id: mod.local,
-      kind: mod.kind,
-      loader: mod.mediaType,
-      dependencies: mod.dependencies,
-    };
-  } else if (mod.kind === "npm") {
-    return {
-      id: mod.npmPackage,
-      kind: mod.kind,
+      id: name,
+      kind: "npm",
       loader: null,
-      dependencies: [],
-    };
-  } else if (mod.kind === "external") {
-    // Let vite handle this
-    return null;
-  } else if (mod.kind === "asserted") {
-    return {
-      id: mod.local,
-      kind: "esm",
-      loader: mod.mediaType,
-      dependencies: [],
     };
   }
 
-  throw new Error(`Unsupported: ${JSON.stringify(mod, null, 2)}`);
+  if (resolved.startsWith("node:")) {
+    return null;
+  }
+
+  // For file:// URLs, infer the media type from the extension to avoid
+  // a redundant load() call — the load hook will call loader.load()
+  // again to get the actual content.
+  if (resolved.startsWith("file://")) {
+    const filePath = fileURLToPath(resolved);
+    return {
+      id: filePath,
+      kind: "esm",
+      loader: inferMediaTypeFromPath(filePath),
+    };
+  }
+
+  // For remote URLs (https://) we must call load() to determine the
+  // media type, since the URL extension may not reflect the content type.
+  const loadResult = await loader.load(
+    resolved,
+    RequestedModuleType.Default,
+  );
+
+  if (loadResult.kind === "external") {
+    return null;
+  }
+
+  return {
+    id: resolved,
+    kind: "esm",
+    loader: loaderMediaType(loadResult.mediaType),
+  };
 }
 
 export async function resolveViteSpecifier(
   id: string,
   cache: Map<string, DenoResolveResult>,
   posixRoot: string,
+  loader: Loader,
   importer?: string,
 ) {
   const root = path.normalize(posixRoot);
 
-  // Resolve import map
+  // Resolve import map — when running under Deno, import.meta.resolve
+  // consults the import map from deno.json, allowing bare specifiers
+  // (e.g. "preact") to be mapped to "npm:preact@^10". Under Node.js this
+  // falls back to Node's own resolution (package.json imports/exports).
   if (!id.startsWith(".") && !id.startsWith("/")) {
     try {
-      id = import.meta.resolve(id);
+      const resolved = import.meta.resolve(id);
+      // Only use the result if it's a scheme the loader understands.
+      // Vite 8's module runner returns vite-module-runner: URLs.
+      if (
+        resolved.startsWith("file:") ||
+        resolved.startsWith("http:") ||
+        resolved.startsWith("https:") ||
+        resolved.startsWith("npm:") ||
+        resolved.startsWith("jsr:")
+      ) {
+        id = resolved;
+      }
     } catch {
       // Ignore: not resolvable
     }
@@ -185,21 +193,28 @@ export async function resolveViteSpecifier(
   if (importer && isDenoSpecifier(importer)) {
     const { resolved: parent } = parseDenoSpecifier(importer);
 
-    const cached = cache.get(parent);
-    if (cached === undefined) return;
+    // Resolve the sub-import relative to its parent module
+    const parentUrl = parent.startsWith("/")
+      ? pathToFileURL(parent).href
+      : parent;
 
-    const found = cached.dependencies.find((dep) => dep.specifier === id);
-
-    if (found === undefined) return;
-
-    // Check if we need to continue resolution
-    id = found.code.specifier;
-    if (id.startsWith("file://")) {
-      return fileURLToPath(id);
+    let resolvedUrl: string;
+    try {
+      resolvedUrl = loader.resolveSync(id, parentUrl, ResolutionMode.Import);
+    } catch (err) {
+      if (err instanceof ResolveError) return;
+      throw err;
     }
+
+    if (resolvedUrl.startsWith("file://")) {
+      return fileURLToPath(resolvedUrl);
+    }
+
+    // Continue resolution for non-file URLs (e.g. https:)
+    id = resolvedUrl;
   }
 
-  const resolved = cache.get(id) ?? await resolveDeno(id, root);
+  const resolved = cache.get(id) ?? await resolveDeno(id, loader);
 
   // Deno cannot resolve this
   if (resolved === null) return;
@@ -208,7 +223,7 @@ export async function resolveViteSpecifier(
     return null;
   }
 
-  cache.set(resolved.id, resolved);
+  cache.set(id, resolved);
 
   // Vite can load this
   if (
@@ -229,12 +244,16 @@ export function isDenoSpecifier(str: string): str is DenoSpecifierName {
   return str.startsWith("\0deno");
 }
 
+const DENO_SPECIFIER_SUFFIX = "#deno";
+
 export function toDenoSpecifier(
   loader: DenoMediaType,
   id: string,
   resolved: string,
 ): DenoSpecifierName {
-  return `\0deno::${loader}::${id}::${resolved}` as DenoSpecifierName;
+  // Append suffix to prevent Vite's built-in plugins (e.g. vite:json)
+  // from matching the virtual module ID by file extension.
+  return `\0deno::${loader}::${id}::${resolved}${DENO_SPECIFIER_SUFFIX}` as DenoSpecifierName;
 }
 
 export function parseDenoSpecifier(spec: DenoSpecifierName): {
@@ -242,12 +261,26 @@ export function parseDenoSpecifier(spec: DenoSpecifierName): {
   id: string;
   resolved: string;
 } {
-  const [_, loader, id, posixPath] = spec.split("::") as [
-    string,
+  // Strip the suffix before parsing
+  const raw = spec.endsWith(DENO_SPECIFIER_SUFFIX)
+    ? spec.slice(0, -DENO_SPECIFIER_SUFFIX.length)
+    : spec;
+  // Format: "\0deno::<loader>::<id>::<resolved>"
+  // Position 0 is the "\0deno" prefix, 1 is the DenoMediaType, 2 is the
+  // original specifier, and the rest is the resolved path (joined in case
+  // it contains "::", e.g. an https:// URL).
+  const [_, loader, id, ...rest] = raw.split("::") as [
     string,
     DenoMediaType,
     string,
+    ...string[],
   ];
-  const resolved = path.normalize(posixPath);
-  return { loader: loader as DenoMediaType, id, resolved };
+  // Rejoin rest in case the resolved path contains "::" (unlikely but safe).
+  const posixPath = rest.join("::");
+  // Only normalize filesystem paths, not URLs.
+  const resolved =
+    posixPath.startsWith("http:") || posixPath.startsWith("https:")
+      ? posixPath
+      : path.normalize(posixPath);
+  return { loader, id, resolved };
 }

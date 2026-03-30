@@ -1,3 +1,4 @@
+import type { Loader } from "@deno/loader";
 import type { Plugin } from "vite";
 import {
   type DenoResolveResult,
@@ -9,6 +10,7 @@ import path from "node:path";
 
 export default function denoPrefixPlugin(
   cache: Map<string, DenoResolveResult>,
+  getLoader: () => Promise<Loader>,
 ): Plugin {
   let root = process.cwd();
 
@@ -21,15 +23,16 @@ export default function denoPrefixPlugin(
     },
     async resolveId(id, importer) {
       if (id.startsWith("npm:")) {
-        const resolved = await resolveDeno(id, root);
+        const loader = await getLoader();
+        const resolved = await resolveDeno(id, loader);
         if (resolved === null) return;
 
         // TODO: Resolving custom versions is not supported at the moment
-        const actual = resolved.id.slice(0, resolved.id.indexOf("@"));
-        const result = await this.resolve(actual);
-        return result ?? actual;
+        const result = await this.resolve(resolved.id);
+        return result ?? resolved.id;
       } else if (id.startsWith("http:") || id.startsWith("https:")) {
-        return await resolveViteSpecifier(id, cache, root, importer);
+        const loader = await getLoader();
+        return await resolveViteSpecifier(id, cache, root, loader, importer);
       }
     },
   };
