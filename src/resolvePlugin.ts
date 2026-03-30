@@ -55,6 +55,7 @@ export default function denoPlugin(
         : null;
 
       if (mediaType === "Json") {
+        // Wrap raw JSON as a default export; source map is not applicable here.
         return `export default ${code}`;
       }
 

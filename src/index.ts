@@ -1,5 +1,6 @@
 import type { Plugin } from "vite";
 import { type Loader, Workspace } from "@deno/loader";
+import { parse as parseJsonc } from "@std/jsonc";
 import fs from "node:fs";
 import path from "node:path";
 import prefixPlugin from "./prefixPlugin.js";
@@ -23,7 +24,7 @@ function findDenoConfig(startDir: string): string | null {
         const content = fs.readFileSync(candidate, "utf-8");
         if (nearest === null) nearest = candidate;
 
-        const json = JSON.parse(content);
+        const json = parseJsonc(content) as Record<string, unknown>;
         if (json.workspace) {
           // Found the workspace root
           return candidate;

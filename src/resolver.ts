@@ -54,9 +54,6 @@ function inferMediaTypeFromPath(filePath: string): DenoMediaType | null {
     case ".ts":
     case ".mts":
     case ".cts":
-    case ".d.ts":
-    case ".d.mts":
-    case ".d.cts":
       return "TypeScript";
     case ".tsx":
       return "TSX";
@@ -86,11 +83,16 @@ export async function resolveDeno(
     resolved = loader.resolveSync(id, undefined, ResolutionMode.Import);
     // If resolveSync returns a jsr: or http(s): URL that hasn't been graphed
     // yet, add it as an entrypoint and resolve again to get the final URL.
+    // addEntrypoints may fail (e.g. network error) — treat that as unresolvable.
     if (
       resolved.startsWith("jsr:") || resolved.startsWith("http:") ||
       resolved.startsWith("https:")
     ) {
-      await loader.addEntrypoints([resolved]);
+      try {
+        await loader.addEntrypoints([resolved]);
+      } catch {
+        return null;
+      }
       resolved = loader.resolveSync(resolved, undefined, ResolutionMode.Import);
     }
   } catch (err) {
@@ -165,7 +167,10 @@ export async function resolveViteSpecifier(
 ) {
   const root = path.normalize(posixRoot);
 
-  // Resolve import map
+  // Resolve import map — when running under Deno, import.meta.resolve
+  // consults the import map from deno.json, allowing bare specifiers
+  // (e.g. "preact") to be mapped to "npm:preact@^10". Under Node.js this
+  // falls back to Node's own resolution (package.json imports/exports).
   if (!id.startsWith(".") && !id.startsWith("/")) {
     try {
       const resolved = import.meta.resolve(id);

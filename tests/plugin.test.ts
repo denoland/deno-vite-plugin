@@ -1,6 +1,18 @@
 import * as path from "node:path";
+import child_process from "node:child_process";
 import { beforeAll, describe, expect, it } from "vitest";
-import { execAsync } from "../src/utils.ts";
+
+function execAsync(
+  cmd: string,
+  options: child_process.ExecOptions,
+): Promise<{ stderr: string; stdout: string }> {
+  return new Promise((resolve, reject) =>
+    child_process.exec(cmd, options, (error, stdout, stderr) => {
+      if (error) reject(error);
+      else resolve({ stdout: String(stdout), stderr: String(stderr) });
+    })
+  );
+}
 
 const fixtureDir = path.join(import.meta.dirname!, "fixture");
 
