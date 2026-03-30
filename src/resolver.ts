@@ -188,11 +188,46 @@ export async function resolveViteSpecifier(
 ) {
   const root = path.normalize(posixRoot);
 
-  // Resolve import map — when running under Deno, import.meta.resolve
-  // consults the import map from deno.json, allowing bare specifiers
-  // (e.g. "preact") to be mapped to "npm:preact@^10". Under Node.js this
-  // falls back to Node's own resolution (package.json imports/exports).
-  if (!id.startsWith(".") && !id.startsWith("/")) {
+  // Try to resolve through the Deno loader first when we have an importer.
+  // This handles workspace member import maps correctly, since
+  // loader.resolveSync is import-map-aware per workspace member, while
+  // import.meta.resolve only sees the root deno.json import map.
+  if (importer) {
+    let importerUrl: string | undefined;
+    if (isDenoSpecifier(importer)) {
+      const { resolved: parent } = parseDenoSpecifier(importer);
+      importerUrl = parent.startsWith("/")
+        ? pathToFileURL(parent).href
+        : parent;
+    } else if (importer.startsWith("/") || /^[a-zA-Z]:/.test(importer)) {
+      importerUrl = pathToFileURL(importer).href;
+    }
+
+    if (importerUrl) {
+      try {
+        const resolvedUrl = loader.resolveSync(
+          id,
+          importerUrl,
+          ResolutionMode.Import,
+        );
+
+        if (resolvedUrl.startsWith("file://")) {
+          return fileURLToPath(resolvedUrl);
+        }
+
+        // Continue resolution for non-file URLs (e.g. npm:, jsr:, https:)
+        id = resolvedUrl;
+      } catch (err) {
+        if (!(err instanceof ResolveError)) throw err;
+        // Fall through to import.meta.resolve fallback
+      }
+    }
+  }
+
+  // Fallback: resolve bare specifiers through import.meta.resolve, which
+  // consults the root deno.json import map under Deno, or Node's own
+  // resolution under Node.js. This does NOT see workspace member import maps.
+  if (!id.startsWith(".") && !id.startsWith("/") && !id.includes(":")) {
     try {
       const resolved = import.meta.resolve(id);
       // Only use the result if it's a scheme the loader understands.
@@ -209,30 +244,6 @@ export async function resolveViteSpecifier(
     } catch {
       // Ignore: not resolvable
     }
-  }
-
-  if (importer && isDenoSpecifier(importer)) {
-    const { resolved: parent } = parseDenoSpecifier(importer);
-
-    // Resolve the sub-import relative to its parent module
-    const parentUrl = parent.startsWith("/")
-      ? pathToFileURL(parent).href
-      : parent;
-
-    let resolvedUrl: string;
-    try {
-      resolvedUrl = loader.resolveSync(id, parentUrl, ResolutionMode.Import);
-    } catch (err) {
-      if (err instanceof ResolveError) return;
-      throw err;
-    }
-
-    if (resolvedUrl.startsWith("file://")) {
-      return fileURLToPath(resolvedUrl);
-    }
-
-    // Continue resolution for non-file URLs (e.g. https:)
-    id = resolvedUrl;
   }
 
   const resolved = cache.get(id) ?? await resolveDeno(id, loader);
