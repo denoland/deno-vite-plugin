@@ -37,6 +37,7 @@ export default function denoPlugin(
   getCache: (envName?: string) => Map<string, DenoResolveResult>,
   getLoader: (envName?: string) => Promise<Loader>,
   onLoad?: (ctx: LoadContext) => OnLoadResult | Promise<OnLoadResult>,
+  isExcluded?: ((id: string) => boolean) | null,
 ): Plugin {
   let root = process.cwd();
 
@@ -84,6 +85,9 @@ export default function denoPlugin(
     async resolveId(id, importer) {
       // The "pre"-resolve plugin already resolved it
       if (isDenoSpecifier(id)) return;
+
+      // Skip IDs excluded by the user (e.g. virtual modules from other plugins)
+      if (isExcluded?.(id)) return;
 
       // @ts-ignore Vite 7+ Environment API
       const envName: string | undefined = this.environment?.name;

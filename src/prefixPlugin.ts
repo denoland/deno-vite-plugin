@@ -12,6 +12,7 @@ import path from "node:path";
 export default function denoPrefixPlugin(
   getCache: (envName?: string) => Map<string, DenoResolveResult>,
   getLoader: (envName?: string) => Promise<Loader>,
+  isExcluded: ((id: string) => boolean) | null,
 ): Plugin {
   let root = process.cwd();
 
@@ -37,6 +38,8 @@ export default function denoPrefixPlugin(
       if (id.startsWith(DENO_HTTP_PREFIX)) {
         id = id.slice(DENO_HTTP_PREFIX.length);
       }
+
+      if (isExcluded?.(id)) return;
 
       if (id.startsWith("npm:")) {
         const loader = await getLoader(envName);
