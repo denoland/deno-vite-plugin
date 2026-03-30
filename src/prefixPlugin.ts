@@ -18,7 +18,9 @@ export default function denoPrefixPlugin(
   return {
     name: "deno:prefix",
     enforce: "pre",
+    // @ts-ignore Vite 7+ Environment API
     sharedDuringBuild: true,
+    // @ts-ignore Vite 7+ Environment API
     applyToEnvironment() {
       return true;
     },
@@ -27,7 +29,8 @@ export default function denoPrefixPlugin(
       root = path.normalize(config.root);
     },
     async resolveId(id, importer) {
-      const envName = this.environment?.name;
+      // @ts-ignore Vite 7+ Environment API
+      const envName: string | undefined = this.environment?.name;
 
       // Strip deno-http:: prefix added by the load hook to prevent
       // Vite's SSR module runner from treating https:// as external.

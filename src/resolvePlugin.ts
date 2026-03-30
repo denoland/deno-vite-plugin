@@ -37,7 +37,9 @@ export default function denoPlugin(
 
   return {
     name: "deno",
+    // @ts-ignore Vite 7+ Environment API
     sharedDuringBuild: true,
+    // @ts-ignore Vite 7+ Environment API
     applyToEnvironment() {
       return true;
     },
@@ -49,7 +51,8 @@ export default function denoPlugin(
       // The "pre"-resolve plugin already resolved it
       if (isDenoSpecifier(id)) return;
 
-      const envName = this.environment?.name;
+      // @ts-ignore Vite 7+ Environment API
+      const envName: string | undefined = this.environment?.name;
       const loader = await getLoader(envName);
       return await resolveViteSpecifier(id, cache, root, loader, importer);
     },
@@ -60,7 +63,8 @@ export default function denoPlugin(
         id,
       );
 
-      const envName = this.environment?.name;
+      // @ts-ignore Vite 7+ Environment API
+      const envName: string | undefined = this.environment?.name;
       const denoLoader = await getLoader(envName);
       const specifierUrl = resolved.startsWith("/") ||
           /^[a-zA-Z]:/.test(resolved)
@@ -82,7 +86,8 @@ export default function denoPlugin(
       const rewritten = rewriteHttpImports(code);
 
       if (onLoad) {
-        const consumer = this.environment?.config?.consumer;
+        // @ts-ignore Vite 7+ Environment API
+        const consumer: string | undefined = this.environment?.config?.consumer;
         const result = onLoad({
           code: rewritten,
           id: specifierUrl,
