@@ -60,27 +60,39 @@ export default function denoPlugin(
       // only in the SSR environment (e.g. virtual island modules discovered
       // during server.ssrLoadModule), the client module graph won't have it.
       // Vite's /@id/ handler looks up the client graph for browser requests,
-      // so the response is empty. Pre-warm the client environment by calling
-      // transformRequest before Vite's built-in middleware handles it.
+      // so the response is empty.
+      //
+      // We return a post-middleware function so it runs after Vite's built-in
+      // middleware. When Vite's /@id/ handler fails to find the module in the
+      // client graph, the request falls through to our handler, which resolves
+      // it via transformRequest and serves the result directly.
       const clientEnv = server.environments?.client;
       if (!clientEnv) return;
 
-      server.middlewares.use(
-        // deno-lint-ignore no-explicit-any
-        async (req: any, _res: any, next: (err?: unknown) => void) => {
-          const url: string | undefined = req.url;
-          if (!url || !url.startsWith("/@id/")) return next();
+      return () => {
+        server.middlewares.use(
+          // deno-lint-ignore no-explicit-any
+          async (req: any, res: any, next: (err?: unknown) => void) => {
+            const url: string | undefined = req.url;
+            if (!url || !url.startsWith("/@id/")) return next();
 
-          const rawId = url.slice("/@id/".length).split("?")[0];
-          const id = decodeURIComponent(rawId);
-          try {
-            await clientEnv.transformRequest(id);
-          } catch {
-            // Not resolvable in client environment — let Vite handle it
-          }
-          next();
-        },
-      );
+            const rawId = url.slice("/@id/".length).split("?")[0];
+            const id = decodeURIComponent(rawId);
+            try {
+              const result = await clientEnv.transformRequest(id);
+              if (result) {
+                res.setHeader("Content-Type", "application/javascript");
+                res.statusCode = 200;
+                res.end(result.code);
+                return;
+              }
+            } catch {
+              // Not resolvable in client environment
+            }
+            next();
+          },
+        );
+      };
     },
     async resolveId(id, importer) {
       // The "pre"-resolve plugin already resolved it
