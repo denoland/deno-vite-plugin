@@ -8,6 +8,7 @@
       "import": "./dist/index.js"
     },
     "./resolver": {
+      "types": "./dist/resolver.d.ts",
       "import": "./dist/resolver.js"
     }
   },
