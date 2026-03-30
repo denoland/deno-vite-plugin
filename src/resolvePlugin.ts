@@ -72,9 +72,10 @@ export default function denoPlugin(
       );
       if (loadResult.kind === "external") return;
 
-      // TODO: @deno/loader's load() doesn't return source maps, so
-      // dev-mode debugging for remote TypeScript modules is degraded.
       const code = textDecoder.decode(loadResult.code);
+      const map = loadResult.sourceMap
+        ? textDecoder.decode(loadResult.sourceMap)
+        : null;
 
       // Rewrite https:// imports so Vite's SSR module runner doesn't
       // treat them as external URLs (ERR_UNSUPPORTED_ESM_URL_SCHEME).
@@ -93,10 +94,11 @@ export default function denoPlugin(
       }
 
       if (mediaType === "Json") {
+        // Wrap raw JSON as a default export; source map is not applicable here.
         return `export default ${rewritten}`;
       }
 
-      return rewritten;
+      return { code: rewritten, map };
     },
   };
 }

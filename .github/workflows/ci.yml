@@ -38,6 +38,8 @@ jobs:
 
       - run: npm install vite@${{ matrix.vite-version }} --no-save --force
       - run: npm run build --if-present
+      # Build under Deno so that npm: specifiers from the import map are
+      # resolved by the Deno runtime (the loader doesn't install to node_modules).
       - name: Build fixture
         working-directory: ./tests/fixture
         run: deno run -A --unstable-bare-node-builtins npm:vite@${{ matrix.vite-version }} build --debug

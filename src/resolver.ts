@@ -58,11 +58,16 @@ export async function resolveDeno(
     resolved = loader.resolveSync(id, undefined, ResolutionMode.Import);
     // If resolveSync returns a jsr: or http(s): URL that hasn't been graphed
     // yet, add it as an entrypoint and resolve again to get the final URL.
+    // addEntrypoints may fail (e.g. network error) — treat that as unresolvable.
     if (
       resolved.startsWith("jsr:") || resolved.startsWith("http:") ||
       resolved.startsWith("https:")
     ) {
-      await loader.addEntrypoints([resolved]);
+      try {
+        await loader.addEntrypoints([resolved]);
+      } catch {
+        return null;
+      }
       resolved = loader.resolveSync(resolved, undefined, ResolutionMode.Import);
     }
   } catch (err) {
@@ -129,7 +134,10 @@ export async function resolveViteSpecifier(
 ) {
   const root = path.normalize(posixRoot);
 
-  // Resolve import map
+  // Resolve import map — when running under Deno, import.meta.resolve
+  // consults the import map from deno.json, allowing bare specifiers
+  // (e.g. "preact") to be mapped to "npm:preact@^10". Under Node.js this
+  // falls back to Node's own resolution (package.json imports/exports).
   if (!id.startsWith(".") && !id.startsWith("/")) {
     try {
       const resolved = import.meta.resolve(id);
@@ -239,6 +247,10 @@ export function parseDenoSpecifier(spec: DenoSpecifierName): {
   const raw = spec.endsWith(DENO_SPECIFIER_SUFFIX)
     ? spec.slice(0, -DENO_SPECIFIER_SUFFIX.length)
     : spec;
+  // Format: "\0deno::<loader>::<id>::<resolved>"
+  // Position 0 is the "\0deno" prefix, 1 is the DenoMediaType, 2 is the
+  // original specifier, and the rest is the resolved path (joined in case
+  // it contains "::", e.g. an https:// URL).
   const [_, loader, id, ...rest] = raw.split("::") as [
     string,
     DenoMediaType,

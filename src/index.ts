@@ -5,6 +5,8 @@ import {
   Workspace,
   type WorkspaceOptions,
 } from "@deno/loader";
+import { parse as parseJsonc } from "@std/jsonc";
+import fs from "node:fs";
 import path from "node:path";
 import prefixPlugin from "./prefixPlugin.js";
 import mainPlugin from "./resolvePlugin.js";
@@ -62,20 +64,54 @@ export interface DenoPluginOptions {
   onLoad?: (ctx: LoadContext) => OnLoadResult;
 }
 
+/**
+ * Walk up from `startDir` to find the nearest deno.json or deno.jsonc.
+ * If a config with a "workspace" field is found, return that (the workspace
+ * root). Otherwise return the nearest config file found.
+ */
+function findDenoConfig(startDir: string): string | null {
+  let nearest: string | null = null;
+  let dir = path.resolve(startDir);
+  const root = path.parse(dir).root;
+
+  while (true) {
+    for (const name of ["deno.json", "deno.jsonc"]) {
+      const candidate = path.join(dir, name);
+      try {
+        const content = fs.readFileSync(candidate, "utf-8");
+        if (nearest === null) nearest = candidate;
+
+        const json = parseJsonc(content) as Record<string, unknown>;
+        if (json.workspace) {
+          // Found the workspace root
+          return candidate;
+        }
+      } catch {
+        // File doesn't exist or isn't valid JSON, continue
+      }
+    }
+
+    if (dir === root) break;
+    dir = path.dirname(dir);
+  }
+
+  return nearest;
+}
+
 export default function deno(options?: DenoPluginOptions): Plugin[] {
   const cache = new Map<string, DenoResolveResult>();
 
   const loaders = new Map<string, Promise<Loader>>();
-  let configRoot: string | null = null;
+  let configPath: string | null = null;
+  let configResolved = false;
 
   function createLoaderForEnv(envName: string): Promise<Loader> {
-    const root = configRoot!;
     const envOpts = options?.environments?.[envName];
     const baseOpts = options?.workspaceOptions ?? {};
     const wsOpts: WorkspaceOptions = {
       ...baseOpts,
       ...envOpts,
-      configPath: path.join(root, "deno.json"),
+      ...(configPath ? { configPath } : {}),
     };
     return new Workspace(wsOpts).createLoader();
   }
@@ -84,7 +120,7 @@ export default function deno(options?: DenoPluginOptions): Plugin[] {
     const key = envName ?? "__default__";
     let promise = loaders.get(key);
     if (!promise) {
-      if (configRoot === null) {
+      if (!configResolved) {
         throw new Error("deno plugin: loader not initialized");
       }
       promise = createLoaderForEnv(key);
@@ -97,7 +133,9 @@ export default function deno(options?: DenoPluginOptions): Plugin[] {
     {
       name: "deno:config",
       configResolved(config) {
-        configRoot = path.normalize(config.root);
+        const root = path.normalize(config.root);
+        configPath = findDenoConfig(root);
+        configResolved = true;
       },
     },
     prefixPlugin(cache, getLoader),

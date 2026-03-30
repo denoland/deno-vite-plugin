@@ -8,6 +8,7 @@
       "import": "./dist/index.js"
     },
     "./resolver": {
+      "types": "./dist/resolver.d.ts",
       "import": "./dist/resolver.js"
     }
   },
@@ -41,6 +42,7 @@
     "vitest": "^4.1.2"
   },
   "dependencies": {
-    "@deno/loader": "npm:@jsr/deno__loader@^0.4.0"
+    "@deno/loader": "npm:@jsr/deno__loader@^0.5.0",
+    "@std/jsonc": "npm:@jsr/std__jsonc@^1"
   }
 }
