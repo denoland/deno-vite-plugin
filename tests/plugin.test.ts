@@ -79,6 +79,10 @@ describe("Deno plugin", () => {
     it("resolves json module", async () => {
       await runTest(`inlineHttpJson.js`);
     });
+
+    it("resolves npm: subpath", async () => {
+      await runTest(`inlineNpmSubpath.js`);
+    });
   });
 
   // https://github.com/denoland/deno-vite-plugin/issues/42
