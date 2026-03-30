@@ -52,6 +52,35 @@ export default function denoPlugin(
       // Root path given by Vite always uses posix separators.
       root = path.normalize(config.root);
     },
+    // @ts-ignore Vite 7+ configureServer
+    // deno-lint-ignore no-explicit-any
+    configureServer(server: any) {
+      // Vite 7+ per-environment module graphs: when a module is resolved
+      // only in the SSR environment (e.g. virtual island modules discovered
+      // during server.ssrLoadModule), the client module graph won't have it.
+      // Vite's /@id/ handler looks up the client graph for browser requests,
+      // so the response is empty. Pre-warm the client environment by calling
+      // transformRequest before Vite's built-in middleware handles it.
+      const clientEnv = server.environments?.client;
+      if (!clientEnv) return;
+
+      server.middlewares.use(
+        // deno-lint-ignore no-explicit-any
+        async (req: any, _res: any, next: (err?: unknown) => void) => {
+          const url: string | undefined = req.url;
+          if (!url || !url.startsWith("/@id/")) return next();
+
+          const rawId = url.slice("/@id/".length).split("?")[0];
+          const id = decodeURIComponent(rawId);
+          try {
+            await clientEnv.transformRequest(id);
+          } catch {
+            // Not resolvable in client environment — let Vite handle it
+          }
+          next();
+        },
+      );
+    },
     async resolveId(id, importer) {
       // The "pre"-resolve plugin already resolved it
       if (isDenoSpecifier(id)) return;
