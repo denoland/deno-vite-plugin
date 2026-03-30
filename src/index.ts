@@ -61,7 +61,7 @@ export interface DenoPluginOptions {
    * `{ code, map? }` to replace the output, or `null`/`undefined`
    * to use the default.
    */
-  onLoad?: (ctx: LoadContext) => OnLoadResult;
+  onLoad?: (ctx: LoadContext) => OnLoadResult | Promise<OnLoadResult>;
 }
 
 /**
@@ -99,9 +99,11 @@ function findDenoConfig(startDir: string): string | null {
 }
 
 export default function deno(options?: DenoPluginOptions): Plugin[] {
-  const cache = new Map<string, DenoResolveResult>();
-
   const loaders = new Map<string, Promise<Loader>>();
+  // Per-environment resolution caches. Different environments may have
+  // different WorkspaceOptions (e.g. platform: "node" vs "browser"),
+  // so the same specifier can resolve differently across environments.
+  const caches = new Map<string, Map<string, DenoResolveResult>>();
   let configPath: string | null = null;
   let configResolved = false;
 
@@ -117,6 +119,8 @@ export default function deno(options?: DenoPluginOptions): Plugin[] {
   }
 
   function getLoader(envName?: string): Promise<Loader> {
+    // When envName is undefined (Vite <7 or outside environment context),
+    // use a sentinel key that won't collide with real environment names.
     const key = envName ?? "__default__";
     let promise = loaders.get(key);
     if (!promise) {
@@ -129,6 +133,16 @@ export default function deno(options?: DenoPluginOptions): Plugin[] {
     return promise;
   }
 
+  function getCache(envName?: string): Map<string, DenoResolveResult> {
+    const key = envName ?? "__default__";
+    let cache = caches.get(key);
+    if (!cache) {
+      cache = new Map();
+      caches.set(key, cache);
+    }
+    return cache;
+  }
+
   return [
     {
       name: "deno:config",
@@ -138,7 +152,7 @@ export default function deno(options?: DenoPluginOptions): Plugin[] {
         configResolved = true;
       },
     },
-    prefixPlugin(cache, getLoader),
-    mainPlugin(cache, getLoader, options?.onLoad),
+    prefixPlugin(getCache, getLoader),
+    mainPlugin(getCache, getLoader, options?.onLoad),
   ];
 }

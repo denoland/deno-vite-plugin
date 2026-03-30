@@ -10,7 +10,7 @@ import process from "node:process";
 import path from "node:path";
 
 export default function denoPrefixPlugin(
-  cache: Map<string, DenoResolveResult>,
+  getCache: (envName?: string) => Map<string, DenoResolveResult>,
   getLoader: (envName?: string) => Promise<Loader>,
 ): Plugin {
   let root = process.cwd();
@@ -48,6 +48,7 @@ export default function denoPrefixPlugin(
         return result ?? resolved.id;
       } else if (id.startsWith("http:") || id.startsWith("https:")) {
         const loader = await getLoader(envName);
+        const cache = getCache(envName);
         return await resolveViteSpecifier(id, cache, root, loader, importer);
       }
     },

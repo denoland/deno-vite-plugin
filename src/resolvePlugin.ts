@@ -15,23 +15,28 @@ import { pathToFileURL } from "node:url";
 const textDecoder = new TextDecoder();
 
 // Rewrite http(s):// import specifiers so Vite's SSR module runner
-// doesn't short-circuit them as external URLs. Matches:
-//   from "https://..."  /  from 'https://...'
-//   import("https://...")  /  import('https://...')
-const HTTP_IMPORT_RE = /(from\s+|import\s*\()(['"])(https?:\/\/[^'"]+)\2/g;
+// doesn't short-circuit them as external URLs. Matches static imports,
+// re-exports, and dynamic imports:
+//   import x from "https://..."
+//   export { x } from "https://..."
+//   import("https://...")
+// Known limitations: does not match template literal dynamic imports,
+// and may match URLs inside comments or strings. A proper AST transform
+// would be needed for full correctness.
+const HTTP_IMPORT_RE =
+  /(?:from\s+|export\s+.*?from\s+|import\s*\()(['"])(https?:\/\/[^'"]+)\1/g;
 
 function rewriteHttpImports(code: string): string {
   return code.replace(
     HTTP_IMPORT_RE,
-    (_, prefix, quote, url) =>
-      `${prefix}${quote}${DENO_HTTP_PREFIX}${url}${quote}`,
+    (match, _quote, url) => match.replace(url, `${DENO_HTTP_PREFIX}${url}`),
   );
 }
 
 export default function denoPlugin(
-  cache: Map<string, DenoResolveResult>,
+  getCache: (envName?: string) => Map<string, DenoResolveResult>,
   getLoader: (envName?: string) => Promise<Loader>,
-  onLoad?: (ctx: LoadContext) => OnLoadResult,
+  onLoad?: (ctx: LoadContext) => OnLoadResult | Promise<OnLoadResult>,
 ): Plugin {
   let root = process.cwd();
 
@@ -54,6 +59,7 @@ export default function denoPlugin(
       // @ts-ignore Vite 7+ Environment API
       const envName: string | undefined = this.environment?.name;
       const loader = await getLoader(envName);
+      const cache = getCache(envName);
       return await resolveViteSpecifier(id, cache, root, loader, importer);
     },
     async load(id) {
@@ -88,14 +94,14 @@ export default function denoPlugin(
       if (onLoad) {
         // @ts-ignore Vite 7+ Environment API
         const consumer: string | undefined = this.environment?.config?.consumer;
-        const result = onLoad({
+        const result = await onLoad({
           code: rewritten,
           id: specifierUrl,
           mediaType: loadResult.mediaType,
           environment: envName ?? "default",
           ssr: consumer === "server",
         });
-        if (result) return result;
+        if (result != null) return result;
       }
 
       if (mediaType === "Json") {
