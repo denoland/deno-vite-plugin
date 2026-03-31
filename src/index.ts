@@ -170,33 +170,29 @@ export default function deno(options?: DenoPluginOptions): Plugin[] {
   }
 
   const isExcluded = buildExcludeMatcher(options?.exclude);
-  // Track IDs processed by the load hook so the transform plugin can
-  // skip esbuild for them, regardless of ID format changes between hooks.
-  const loadedDenoIds = new Set<string>();
 
   return [
     {
       name: "deno:config",
+      // Exclude deno:: virtual modules from Vite's esbuild transform.
+      // @deno/loader already transpiles TSX/JSX — without this, esbuild
+      // sees the .tsx extension in the specifier and runs its own JSX
+      // transform, overriding onLoad callback output.
+      config() {
+        return {
+          esbuild: {
+            // deno-lint-ignore no-control-regex
+            exclude: [/\x00deno::/],
+          },
+        };
+      },
       configResolved(config) {
         const root = path.normalize(config.root);
         configPath = findDenoConfig(root);
         configResolved = true;
       },
     },
-    // Prevent Vite's esbuild transform from re-processing code that
-    // was already transpiled by @deno/loader. Without this, esbuild
-    // sees the .tsx/.jsx extension on deno:: virtual modules and runs
-    // its own JSX transform, overriding onLoad callback output.
-    {
-      name: "deno:skip-esbuild",
-      enforce: "pre" as const,
-      transform(code: string, id: string) {
-        if (loadedDenoIds.has(id)) {
-          return { code };
-        }
-      },
-    },
     prefixPlugin(getCache, getLoader, isExcluded),
-    mainPlugin(getCache, getLoader, options?.onLoad, isExcluded, loadedDenoIds),
+    mainPlugin(getCache, getLoader, options?.onLoad, isExcluded),
   ];
 }

@@ -38,7 +38,6 @@ export default function denoPlugin(
   getLoader: (envName?: string) => Promise<Loader>,
   onLoad?: (ctx: LoadContext) => OnLoadResult | Promise<OnLoadResult>,
   isExcluded?: ((id: string) => boolean) | null,
-  loadedDenoIds?: Set<string>,
 ): Plugin {
   let root = process.cwd();
 
@@ -112,7 +111,6 @@ export default function denoPlugin(
     },
     async load(id) {
       if (!isDenoSpecifier(id)) return;
-      loadedDenoIds?.add(id);
 
       const { loader: mediaType, resolved } = parseDenoSpecifier(
         id,
