@@ -158,11 +158,7 @@ export default function denoPlugin(
               .replace(/\/\*\*\s*@jsxImportSource[^*]*\*\//g, "")
               .replace(/\/\*\*\s*@jsxImportSourceTypes[^*]*\*\//g, "");
           }
-          return { ...out, loader: "js" } as {
-            code: string;
-            map?: string | null;
-            loader: string;
-          };
+          return out as { code: string; map?: string | null };
         }
       }
 
@@ -178,12 +174,7 @@ export default function denoPlugin(
         .replace(/\/\*\*\s*@jsxImportSource[^*]*\*\//g, "")
         .replace(/\/\*\*\s*@jsxImportSourceTypes[^*]*\*\//g, "");
 
-      // loader: "js" tells Vite the code is already plain JavaScript.
-      // Without this, Vite infers the type from the virtual module's
-      // original extension (.tsx/.jsx) and runs esbuild's JSX transform,
-      // which would override any JSX transformation already done by
-      // @deno/loader or the onLoad callback.
-      return { code: stripped, map, loader: "js" };
+      return { code: stripped, map };
     },
   };
 }

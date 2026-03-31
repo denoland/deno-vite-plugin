@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import prefixPlugin from "./prefixPlugin.js";
 import mainPlugin from "./resolvePlugin.js";
-import type { DenoResolveResult } from "./resolver.js";
+import { type DenoResolveResult, isDenoSpecifier } from "./resolver.js";
 
 export type { MediaType } from "@deno/loader";
 
@@ -178,6 +178,19 @@ export default function deno(options?: DenoPluginOptions): Plugin[] {
         const root = path.normalize(config.root);
         configPath = findDenoConfig(root);
         configResolved = true;
+      },
+    },
+    // Prevent Vite's esbuild transform from re-processing code that
+    // was already transpiled by @deno/loader. Without this, esbuild
+    // sees the .tsx/.jsx extension on deno:: virtual modules and runs
+    // its own JSX transform, overriding onLoad callback output.
+    {
+      name: "deno:skip-esbuild",
+      enforce: "pre" as const,
+      transform(code: string, id: string) {
+        if (isDenoSpecifier(id)) {
+          return { code };
+        }
       },
     },
     prefixPlugin(getCache, getLoader, isExcluded),
