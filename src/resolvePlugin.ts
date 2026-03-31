@@ -146,7 +146,13 @@ export default function denoPlugin(
           environment: envName ?? "default",
           ssr: consumer === "server",
         });
-        if (result != null) return result;
+        if (result != null) {
+          // Signal to Vite that this code is already transformed (e.g.
+          // JSX compiled by Babel in onLoad). Without loader: "js", Vite's
+          // esbuild transform would process it again, adding duplicate
+          // JSX runtime imports that resolve to the wrong entry.
+          return { ...result, loader: "js" };
+        }
       }
 
       if (mediaType === "Json") {
