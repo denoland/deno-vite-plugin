@@ -95,8 +95,10 @@ export default function denoPlugin(
       };
     },
     async resolveId(id, importer) {
-      // The "pre"-resolve plugin already resolved it
-      if (isDenoSpecifier(id)) return;
+      // Already a deno specifier (e.g. from a previous resolveId call or
+      // re-requested by the browser via /@id/). Return the ID so Vite
+      // knows it's valid and proceeds to the load hook.
+      if (isDenoSpecifier(id)) return id;
 
       // Skip IDs excluded by the user (e.g. virtual modules from other plugins)
       if (isExcluded?.(id)) return;
