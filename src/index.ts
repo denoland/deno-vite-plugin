@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import prefixPlugin from "./prefixPlugin.js";
 import mainPlugin from "./resolvePlugin.js";
-import { type DenoResolveResult, isDenoSpecifier } from "./resolver.js";
+import type { DenoResolveResult } from "./resolver.js";
 
 export type { MediaType } from "@deno/loader";
 
@@ -170,6 +170,9 @@ export default function deno(options?: DenoPluginOptions): Plugin[] {
   }
 
   const isExcluded = buildExcludeMatcher(options?.exclude);
+  // Track IDs processed by the load hook so the transform plugin can
+  // skip esbuild for them, regardless of ID format changes between hooks.
+  const loadedDenoIds = new Set<string>();
 
   return [
     {
@@ -188,12 +191,12 @@ export default function deno(options?: DenoPluginOptions): Plugin[] {
       name: "deno:skip-esbuild",
       enforce: "pre" as const,
       transform(code: string, id: string) {
-        if (isDenoSpecifier(id)) {
+        if (loadedDenoIds.has(id)) {
           return { code };
         }
       },
     },
     prefixPlugin(getCache, getLoader, isExcluded),
-    mainPlugin(getCache, getLoader, options?.onLoad, isExcluded),
+    mainPlugin(getCache, getLoader, options?.onLoad, isExcluded, loadedDenoIds),
   ];
 }
