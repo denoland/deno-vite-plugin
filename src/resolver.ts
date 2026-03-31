@@ -212,11 +212,26 @@ export async function resolveViteSpecifier(
         );
 
         if (resolvedUrl.startsWith("file://")) {
-          return fileURLToPath(resolvedUrl);
+          const resolvedPath = fileURLToPath(resolvedUrl);
+          // Don't trust Deno loader results for paths inside node_modules.
+          // The loader may resolve subpath imports (e.g. "preact/jsx-runtime")
+          // to the package main entry instead of the correct subpath export.
+          // Let Vite's native resolver handle these — it reads package.json
+          // exports maps correctly.
+          if (
+            !resolvedPath.includes(`${path.sep}node_modules${path.sep}`)
+          ) {
+            return resolvedPath;
+          }
+          // Fall through to let Vite handle node_modules resolution
+        } else if (resolvedUrl.startsWith("npm:")) {
+          // npm: results will be handled by the prefix plugin or Vite natively.
+          // Don't continue processing — the loader may have dropped the subpath.
+          return null;
+        } else {
+          // Continue resolution for non-file URLs (e.g. jsr:, https:)
+          id = resolvedUrl;
         }
-
-        // Continue resolution for non-file URLs (e.g. npm:, jsr:, https:)
-        id = resolvedUrl;
       } catch (err) {
         if (!(err instanceof ResolveError)) throw err;
         // Fall through to import.meta.resolve fallback
