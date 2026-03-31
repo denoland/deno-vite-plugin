@@ -62,6 +62,22 @@ export interface DenoPluginOptions {
    * to use the default.
    */
   onLoad?: (ctx: LoadContext) => OnLoadResult | Promise<OnLoadResult>;
+
+  /**
+   * Module IDs to exclude from Deno resolution. Matching IDs are skipped
+   * by both `resolveId` hooks, letting other plugins handle them.
+   *
+   * Accepts a string prefix, a RegExp, or an array of either. String
+   * values are matched as prefixes (e.g. `"fresh-island"` matches
+   * `"fresh-island::Counter"`).
+   *
+   * @example
+   * ```ts
+   * deno({ exclude: ["fresh-island", "fresh:"] })
+   * deno({ exclude: /^fresh-island::/ })
+   * ```
+   */
+  exclude?: string | RegExp | (string | RegExp)[];
 }
 
 /**
@@ -96,6 +112,16 @@ function findDenoConfig(startDir: string): string | null {
   }
 
   return nearest;
+}
+
+function buildExcludeMatcher(
+  exclude?: string | RegExp | (string | RegExp)[],
+): ((id: string) => boolean) | null {
+  if (!exclude) return null;
+  const patterns = Array.isArray(exclude) ? exclude : [exclude];
+  if (patterns.length === 0) return null;
+  return (id: string) =>
+    patterns.some((p) => typeof p === "string" ? id.startsWith(p) : p.test(id));
 }
 
 export default function deno(options?: DenoPluginOptions): Plugin[] {
@@ -143,16 +169,30 @@ export default function deno(options?: DenoPluginOptions): Plugin[] {
     return cache;
   }
 
+  const isExcluded = buildExcludeMatcher(options?.exclude);
+
   return [
     {
       name: "deno:config",
+      // Exclude deno:: virtual modules from Vite's esbuild transform.
+      // @deno/loader already transpiles TSX/JSX — without this, esbuild
+      // sees the .tsx extension in the specifier and runs its own JSX
+      // transform, overriding onLoad callback output.
+      config() {
+        return {
+          esbuild: {
+            // deno-lint-ignore no-control-regex
+            exclude: [/\x00deno::/],
+          },
+        };
+      },
       configResolved(config) {
         const root = path.normalize(config.root);
         configPath = findDenoConfig(root);
         configResolved = true;
       },
     },
-    prefixPlugin(getCache, getLoader),
-    mainPlugin(getCache, getLoader, options?.onLoad),
+    prefixPlugin(getCache, getLoader, isExcluded),
+    mainPlugin(getCache, getLoader, options?.onLoad, isExcluded),
   ];
 }

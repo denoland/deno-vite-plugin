@@ -29,6 +29,7 @@ export default defineConfig({
         inlineHttp: "inlineHttp.ts",
         inlineHttpJson: "inlineHttpJson.ts",
         resolveInRootDir: "resolveInRootDir.ts",
+        inlineNpmSubpath: "inlineNpmSubpath.ts",
         linking: "linking.ts",
       },
     },

@@ -37,6 +37,7 @@ export default function denoPlugin(
   getCache: (envName?: string) => Map<string, DenoResolveResult>,
   getLoader: (envName?: string) => Promise<Loader>,
   onLoad?: (ctx: LoadContext) => OnLoadResult | Promise<OnLoadResult>,
+  isExcluded?: ((id: string) => boolean) | null,
 ): Plugin {
   let root = process.cwd();
 
@@ -52,9 +53,55 @@ export default function denoPlugin(
       // Root path given by Vite always uses posix separators.
       root = path.normalize(config.root);
     },
+    // @ts-ignore Vite 7+ configureServer
+    // deno-lint-ignore no-explicit-any
+    configureServer(server: any) {
+      // Vite 7+ per-environment module graphs: when a module is resolved
+      // only in the SSR environment (e.g. virtual island modules discovered
+      // during server.ssrLoadModule), the client module graph won't have it.
+      // Vite's /@id/ handler looks up the client graph for browser requests,
+      // so the response is empty.
+      //
+      // We return a post-middleware function so it runs after Vite's built-in
+      // middleware. When Vite's /@id/ handler fails to find the module in the
+      // client graph, the request falls through to our handler, which resolves
+      // it via transformRequest and serves the result directly.
+      const clientEnv = server.environments?.client;
+      if (!clientEnv) return;
+
+      return () => {
+        server.middlewares.use(
+          // deno-lint-ignore no-explicit-any
+          async (req: any, res: any, next: (err?: unknown) => void) => {
+            const url: string | undefined = req.url;
+            if (!url || !url.startsWith("/@id/")) return next();
+
+            const rawId = url.slice("/@id/".length).split("?")[0];
+            const id = decodeURIComponent(rawId);
+            try {
+              const result = await clientEnv.transformRequest(id);
+              if (result) {
+                res.setHeader("Content-Type", "application/javascript");
+                res.statusCode = 200;
+                res.end(result.code);
+                return;
+              }
+            } catch {
+              // Not resolvable in client environment
+            }
+            next();
+          },
+        );
+      };
+    },
     async resolveId(id, importer) {
-      // The "pre"-resolve plugin already resolved it
-      if (isDenoSpecifier(id)) return;
+      // Already a deno specifier (e.g. from a previous resolveId call or
+      // re-requested by the browser via /@id/). Return the ID so Vite
+      // knows it's valid and proceeds to the load hook.
+      if (isDenoSpecifier(id)) return id;
+
+      // Skip IDs excluded by the user (e.g. virtual modules from other plugins)
+      if (isExcluded?.(id)) return;
 
       // @ts-ignore Vite 7+ Environment API
       const envName: string | undefined = this.environment?.name;
@@ -101,7 +148,18 @@ export default function denoPlugin(
           environment: envName ?? "default",
           ssr: consumer === "server",
         });
-        if (result != null) return result;
+        if (result != null) {
+          // Strip JSX pragma comments so Vite's esbuild transform doesn't
+          // re-process already-transformed JSX from the onLoad callback.
+          const out = result as { code?: string; map?: string | null };
+          if (out.code) {
+            out.code = out.code
+              .replace(/\/\*\*\s*@jsxRuntime\s+\w+\s*\*\//g, "")
+              .replace(/\/\*\*\s*@jsxImportSource[^*]*\*\//g, "")
+              .replace(/\/\*\*\s*@jsxImportSourceTypes[^*]*\*\//g, "");
+          }
+          return out as { code: string; map?: string | null };
+        }
       }
 
       if (mediaType === "Json") {
@@ -109,7 +167,14 @@ export default function denoPlugin(
         return `export default ${rewritten}`;
       }
 
-      return { code: rewritten, map };
+      // Strip JSX pragma comments so Vite's esbuild transform doesn't
+      // try to resolve npm: JSX import sources it can't handle.
+      const stripped = rewritten
+        .replace(/\/\*\*\s*@jsxRuntime\s+\w+\s*\*\//g, "")
+        .replace(/\/\*\*\s*@jsxImportSource[^*]*\*\//g, "")
+        .replace(/\/\*\*\s*@jsxImportSourceTypes[^*]*\*\//g, "");
+
+      return { code: stripped, map };
     },
   };
 }

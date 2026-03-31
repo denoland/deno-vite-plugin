@@ -103,19 +103,40 @@ export async function resolveDeno(
   // npm: specifiers: the original id starts with npm: but the loader may
   // resolve it to a file:// path (when nodeModulesDir is set) or keep it as npm:.
   if (id.startsWith("npm:")) {
-    // Extract bare package name from the original specifier
-    // e.g. "npm:preact@^10.24.0" -> "preact"
-    //      "npm:@scope/pkg@1.0.0" -> "@scope/pkg"
+    // Extract bare package name + subpath from the original specifier
+    // e.g. "npm:preact@^10.24.0"             -> "preact"
+    //      "npm:@scope/pkg@1.0.0"             -> "@scope/pkg"
+    //      "npm:preact@^10.24.0/jsx-runtime"  -> "preact/jsx-runtime"
+    //      "npm:@scope/pkg@1.0.0/sub"         -> "@scope/pkg/sub"
     const bare = id.slice(4);
     let name: string;
+    let versionAndRest: string;
     if (bare.startsWith("@")) {
       const slashIdx = bare.indexOf("/");
       const afterSlash = bare.slice(slashIdx + 1);
       const atIdx = afterSlash.indexOf("@");
-      name = atIdx === -1 ? bare : bare.slice(0, slashIdx + 1 + atIdx);
+      if (atIdx === -1) {
+        name = bare;
+        versionAndRest = "";
+      } else {
+        name = bare.slice(0, slashIdx + 1 + atIdx);
+        versionAndRest = afterSlash.slice(atIdx + 1);
+      }
     } else {
       const atIdx = bare.indexOf("@");
-      name = atIdx === -1 ? bare : bare.slice(0, atIdx);
+      if (atIdx === -1) {
+        name = bare;
+        versionAndRest = "";
+      } else {
+        name = bare.slice(0, atIdx);
+        versionAndRest = bare.slice(atIdx + 1);
+      }
+    }
+    // Preserve subpath from the version string
+    // e.g. "^10.24.0/jsx-runtime" -> append "/jsx-runtime" to name
+    const subpathSlash = versionAndRest.indexOf("/");
+    if (subpathSlash !== -1) {
+      name += versionAndRest.slice(subpathSlash);
     }
     return {
       id: name,
@@ -167,11 +188,65 @@ export async function resolveViteSpecifier(
 ) {
   const root = path.normalize(posixRoot);
 
-  // Resolve import map — when running under Deno, import.meta.resolve
-  // consults the import map from deno.json, allowing bare specifiers
-  // (e.g. "preact") to be mapped to "npm:preact@^10". Under Node.js this
-  // falls back to Node's own resolution (package.json imports/exports).
-  if (!id.startsWith(".") && !id.startsWith("/")) {
+  // Try to resolve through the Deno loader first when we have an importer.
+  // This handles workspace member import maps correctly, since
+  // loader.resolveSync is import-map-aware per workspace member, while
+  // import.meta.resolve only sees the root deno.json import map.
+  if (importer) {
+    let importerUrl: string | undefined;
+    if (isDenoSpecifier(importer)) {
+      const { resolved: parent } = parseDenoSpecifier(importer);
+      importerUrl = parent.startsWith("/")
+        ? pathToFileURL(parent).href
+        : parent;
+    } else if (importer.startsWith("/") || /^[a-zA-Z]:/.test(importer)) {
+      importerUrl = pathToFileURL(importer).href;
+    }
+
+    if (importerUrl) {
+      try {
+        const resolvedUrl = loader.resolveSync(
+          id,
+          importerUrl,
+          ResolutionMode.Import,
+        );
+
+        if (resolvedUrl.startsWith("file://")) {
+          const resolvedPath = fileURLToPath(resolvedUrl);
+          // Don't trust Deno loader results for paths inside node_modules.
+          // The loader may resolve subpath imports (e.g. "preact/jsx-runtime")
+          // to the package main entry instead of the correct subpath export.
+          // Let Vite's native resolver handle these — it reads package.json
+          // exports maps correctly.
+          if (
+            resolvedPath.includes(`${path.sep}node_modules${path.sep}`)
+          ) {
+            // Fall through to let Vite handle node_modules resolution
+          } else {
+            // Continue through resolveDeno so modules that need the load
+            // hook (e.g. TSX requiring onLoad JSX transforms) get a deno
+            // specifier instead of a plain file path.
+            id = resolvedUrl;
+          }
+        } else if (resolvedUrl.startsWith("npm:")) {
+          // npm: results will be handled by the prefix plugin or Vite natively.
+          // Don't continue processing — the loader may have dropped the subpath.
+          return null;
+        } else {
+          // Continue resolution for non-file URLs (e.g. jsr:, https:)
+          id = resolvedUrl;
+        }
+      } catch (err) {
+        if (!(err instanceof ResolveError)) throw err;
+        // Fall through to import.meta.resolve fallback
+      }
+    }
+  }
+
+  // Fallback: resolve bare specifiers through import.meta.resolve, which
+  // consults the root deno.json import map under Deno, or Node's own
+  // resolution under Node.js. This does NOT see workspace member import maps.
+  if (!id.startsWith(".") && !id.startsWith("/") && !id.includes(":")) {
     try {
       const resolved = import.meta.resolve(id);
       // Only use the result if it's a scheme the loader understands.
@@ -188,30 +263,6 @@ export async function resolveViteSpecifier(
     } catch {
       // Ignore: not resolvable
     }
-  }
-
-  if (importer && isDenoSpecifier(importer)) {
-    const { resolved: parent } = parseDenoSpecifier(importer);
-
-    // Resolve the sub-import relative to its parent module
-    const parentUrl = parent.startsWith("/")
-      ? pathToFileURL(parent).href
-      : parent;
-
-    let resolvedUrl: string;
-    try {
-      resolvedUrl = loader.resolveSync(id, parentUrl, ResolutionMode.Import);
-    } catch (err) {
-      if (err instanceof ResolveError) return;
-      throw err;
-    }
-
-    if (resolvedUrl.startsWith("file://")) {
-      return fileURLToPath(resolvedUrl);
-    }
-
-    // Continue resolution for non-file URLs (e.g. https:)
-    id = resolvedUrl;
   }
 
   const resolved = cache.get(id) ?? await resolveDeno(id, loader);
@@ -233,8 +284,11 @@ export async function resolveViteSpecifier(
 
   // Vite can load local files that are inside the project root with a
   // known or null loader — no need to go through our load hook.
+  // Exclude node_modules: files there may be Deno-managed JSR modules
+  // that need the load hook for JSX pragma stripping and onLoad transforms.
   const isInsideRoot = resolved.id.startsWith(path.resolve(root)) &&
-    !path.relative(root, resolved.id).startsWith(".");
+    !path.relative(root, resolved.id).startsWith(".") &&
+    !resolved.id.includes(`${path.sep}node_modules${path.sep}`);
   if (!isRemote && (resolved.loader === null || isInsideRoot)) {
     return resolved.id;
   }
