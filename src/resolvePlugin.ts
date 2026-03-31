@@ -147,11 +147,16 @@ export default function denoPlugin(
           ssr: consumer === "server",
         });
         if (result != null) {
-          // Signal to Vite that this code is already transformed (e.g.
-          // JSX compiled by Babel in onLoad). Without loader: "js", Vite's
-          // esbuild transform would process it again, adding duplicate
-          // JSX runtime imports that resolve to the wrong entry.
-          return { ...result, loader: "js" };
+          // Strip JSX pragma comments so Vite's esbuild transform doesn't
+          // re-process already-transformed JSX from the onLoad callback.
+          const out = result as { code?: string; map?: string | null };
+          if (out.code) {
+            out.code = out.code
+              .replace(/\/\*\*\s*@jsxRuntime\s+\w+\s*\*\//g, "")
+              .replace(/\/\*\*\s*@jsxImportSource[^*]*\*\//g, "")
+              .replace(/\/\*\*\s*@jsxImportSourceTypes[^*]*\*\//g, "");
+          }
+          return out as { code: string; map?: string | null };
         }
       }
 
@@ -160,7 +165,14 @@ export default function denoPlugin(
         return `export default ${rewritten}`;
       }
 
-      return { code: rewritten, map };
+      // Strip JSX pragma comments so Vite's esbuild transform doesn't
+      // try to resolve npm: JSX import sources it can't handle.
+      const stripped = rewritten
+        .replace(/\/\*\*\s*@jsxRuntime\s+\w+\s*\*\//g, "")
+        .replace(/\/\*\*\s*@jsxImportSource[^*]*\*\//g, "")
+        .replace(/\/\*\*\s*@jsxImportSourceTypes[^*]*\*\//g, "");
+
+      return { code: stripped, map };
     },
   };
 }
