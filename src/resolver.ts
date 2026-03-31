@@ -219,11 +219,15 @@ export async function resolveViteSpecifier(
           // Let Vite's native resolver handle these — it reads package.json
           // exports maps correctly.
           if (
-            !resolvedPath.includes(`${path.sep}node_modules${path.sep}`)
+            resolvedPath.includes(`${path.sep}node_modules${path.sep}`)
           ) {
-            return resolvedPath;
+            // Fall through to let Vite handle node_modules resolution
+          } else {
+            // Continue through resolveDeno so modules that need the load
+            // hook (e.g. TSX requiring onLoad JSX transforms) get a deno
+            // specifier instead of a plain file path.
+            id = resolvedUrl;
           }
-          // Fall through to let Vite handle node_modules resolution
         } else if (resolvedUrl.startsWith("npm:")) {
           // npm: results will be handled by the prefix plugin or Vite natively.
           // Don't continue processing — the loader may have dropped the subpath.
