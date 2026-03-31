@@ -284,8 +284,11 @@ export async function resolveViteSpecifier(
 
   // Vite can load local files that are inside the project root with a
   // known or null loader — no need to go through our load hook.
+  // Exclude node_modules: files there may be Deno-managed JSR modules
+  // that need the load hook for JSX pragma stripping and onLoad transforms.
   const isInsideRoot = resolved.id.startsWith(path.resolve(root)) &&
-    !path.relative(root, resolved.id).startsWith(".");
+    !path.relative(root, resolved.id).startsWith(".") &&
+    !resolved.id.includes(`${path.sep}node_modules${path.sep}`);
   if (!isRemote && (resolved.loader === null || isInsideRoot)) {
     return resolved.id;
   }
