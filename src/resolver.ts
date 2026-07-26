@@ -190,28 +190,53 @@ export async function resolveViteSpecifier(
     }
   }
 
-  if (importer && isDenoSpecifier(importer)) {
+  // Resolve relative to the importer so that a workspace member's own import
+  // map is honored. A member's `imports` are *scoped* to that member's
+  // directory (e.g. an "@ui/" alias or a jsr:/npm: dependency declared in the
+  // member's deno.json), so they are only resolvable when the referrer is
+  // known. Vite hands us two kinds of importer:
+  //  - one of our virtual Deno specifiers (a sub-import of a Deno module), or
+  //  - a plain file path. This happens when a Deno module re-exports a local
+  //    file: the file is returned to Vite as a real path (below), so its own
+  //    imports arrive here with a plain-path importer and no Deno context.
+  const importerIsDeno = importer !== undefined && isDenoSpecifier(importer);
+  let parentUrl: string | undefined;
+  if (importerIsDeno) {
     const { resolved: parent } = parseDenoSpecifier(importer);
+    parentUrl = parent.startsWith("/") ? pathToFileURL(parent).href : parent;
+  } else if (
+    importer !== undefined && !id.startsWith(".") && !id.startsWith("/")
+  ) {
+    // Only bare/aliased specifiers consult the import map; relative and
+    // absolute specifiers are left to Vite's default resolver, as before.
+    const importerPath = importer.split("?")[0];
+    if (path.isAbsolute(importerPath)) {
+      parentUrl = pathToFileURL(importerPath).href;
+    }
+  }
 
-    // Resolve the sub-import relative to its parent module
-    const parentUrl = parent.startsWith("/")
-      ? pathToFileURL(parent).href
-      : parent;
-
-    let resolvedUrl: string;
+  if (parentUrl !== undefined) {
+    let resolvedUrl: string | undefined;
     try {
       resolvedUrl = loader.resolveSync(id, parentUrl, ResolutionMode.Import);
     } catch (err) {
-      if (err instanceof ResolveError) return;
-      throw err;
+      if (!(err instanceof ResolveError)) throw err;
+      // For our own virtual specifiers a ResolveError is terminal. For a
+      // plain-file importer, fall through to the referrer-less resolution
+      // below so root-scoped resolution still gets a chance.
+      if (importerIsDeno) return;
     }
 
-    if (resolvedUrl.startsWith("file://")) {
-      return fileURLToPath(resolvedUrl);
+    if (resolvedUrl !== undefined) {
+      // Preserve existing behavior for sub-imports of Deno modules: an
+      // in-graph file path is returned to Vite directly. For a plain-file
+      // importer, feed the resolved specifier through the shared path below
+      // so in-/out-of-root handling and media-type wrapping still apply.
+      if (importerIsDeno && resolvedUrl.startsWith("file://")) {
+        return fileURLToPath(resolvedUrl);
+      }
+      id = resolvedUrl;
     }
-
-    // Continue resolution for non-file URLs (e.g. https:)
-    id = resolvedUrl;
   }
 
   const resolved = cache.get(id) ?? await resolveDeno(id, loader);
