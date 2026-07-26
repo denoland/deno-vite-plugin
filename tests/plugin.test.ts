@@ -85,4 +85,12 @@ describe("Deno plugin", () => {
   it("resolve to file in root dir", async () => {
     await runTest(`resolveInRootDir.js`);
   });
+
+  // A linked/workspace member resolved via the root map is handed to Vite as a
+  // plain path, so its own imports must still resolve against the member's own
+  // (directory-scoped) import map — an "@linked/" alias and a jsr dependency
+  // that are absent from the root map.
+  it("resolves a member's own scoped import map", async () => {
+    await runTest(`linking.js`);
+  });
 });

@@ -9,5 +9,7 @@ import { helper } from "@linked/util.ts";
 import { encodeBase64 } from "@std/encoding/base64";
 
 export function linkedFunction() {
+  // helper() -> "helper"; both imports must resolve and run for the expected
+  // result, so a break in either is observable at runtime, not just at build.
   return encodeBase64(new TextEncoder().encode(helper()));
 }
