@@ -2,5 +2,9 @@
   "name": "linked",
   "exports": {
     ".": "./main.ts"
+  },
+  "imports": {
+    "@linked/": "./",
+    "@std/encoding": "jsr:@std/encoding@^1.0.5"
   }
 }

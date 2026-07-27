@@ -834,7 +834,11 @@
       "npm:preact@^10.24.0"
     ],
     "links": {
-      "jsr:linked": {}
+      "jsr:linked": {
+        "dependencies": [
+          "jsr:@std/encoding@^1.0.5"
+        ]
+      }
     }
   }
 }
