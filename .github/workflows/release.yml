@@ -7,15 +7,21 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Required for npm trusted publishing (OIDC): lets the job mint the
+      # short-lived OIDC token npm exchanges for publish access. No NPM_TOKEN.
       id-token: write
     steps:
       - uses: actions/checkout@v4
-      # Setup .npmrc file to publish to npm
       - uses: actions/setup-node@v4
         with:
+          # Trusted publishing requires Node >= 22.14.0.
           node-version: "22.x"
           registry-url: "https://registry.npmjs.org"
+      # Trusted publishing requires npm CLI >= 11.5.1; Node 22 still bundles
+      # npm 10, so upgrade before publishing.
+      - run: npm install -g npm@latest
       - run: npm ci
+      # No NODE_AUTH_TOKEN: npm authenticates via OIDC and generates
+      # provenance automatically. Requires a trusted publisher configured for
+      # this package on npmjs.com pointing at this repo's release.yml workflow.
       - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
