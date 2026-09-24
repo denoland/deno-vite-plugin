@@ -35,6 +35,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+      # npm 10 (bundled with Node 22) crashes with "Cannot read properties of
+      # null (reading 'edgesOut')" when resolving vitest's vite peer dependency
+      # against older vite versions.
+      - run: npm install -g npm@latest
 
       - run: npm install vite@${{ matrix.vite-version }} --no-save --force
       - run: npm run build --if-present
