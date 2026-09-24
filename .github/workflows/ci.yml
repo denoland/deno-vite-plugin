@@ -35,6 +35,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+      # npm 10 (bundled with Node 22) crashes with "Cannot read properties of
+      # null (reading 'edgesOut')" when resolving vitest's vite peer dependency
+      # against older vite versions. npm 12 refuses to fetch the npm.jsr.io
+      # tarballs in the lockfile (EALLOWREMOTE), so stay on npm 11.
+      - run: npm install -g npm@11
 
       - run: npm install vite@${{ matrix.vite-version }} --no-save --force
       - run: npm run build --if-present
