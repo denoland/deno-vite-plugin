@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import child_process from "node:child_process";
 import { beforeAll, describe, expect, it } from "vitest";
+import { extractPackageName } from "../src/prefixPlugin.ts";
 
 function execAsync(
   cmd: string,
@@ -68,6 +69,10 @@ describe("Deno plugin", () => {
       await runTest(`inlineNpm.js`);
     });
 
+    it("resolves scoped npm:", async () => {
+      await runTest(`inlineScopedNpm.js`);
+    });
+
     it("resolves jsr:", async () => {
       await runTest(`inlineJsr.js`);
     });
@@ -92,5 +97,31 @@ describe("Deno plugin", () => {
   // that are absent from the root map.
   it("resolves a member's own scoped import map", async () => {
     await runTest(`linking.js`);
+  });
+});
+
+describe("extractPackageName", () => {
+  it("handles unscoped packages", () => {
+    expect(extractPackageName("preact@10.25.4")).toEqual("preact");
+  });
+
+  it("handles scoped packages", () => {
+    expect(extractPackageName("@preact/signals@2.8.1")).toEqual(
+      "@preact/signals",
+    );
+  });
+
+  it("handles scoped packages with peer dep suffixes", () => {
+    expect(
+      extractPackageName("@preact/signals@2.8.1_preact@10.25.4"),
+    ).toEqual("@preact/signals");
+  });
+
+  it("handles packages without version", () => {
+    expect(extractPackageName("preact")).toEqual("preact");
+  });
+
+  it("handles scoped packages without version", () => {
+    expect(extractPackageName("@preact/signals")).toEqual("@preact/signals");
   });
 });
